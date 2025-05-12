@@ -29,6 +29,8 @@ import {
   IndexFilters,
   useSetIndexFiltersMode,
   ChoiceList,
+  Toast,
+  Frame,
 } from '@shopify/polaris';
 import '../styles/globals.css';
 import Footer from '../components/Footer';
@@ -109,6 +111,9 @@ export default function ExportPage() {
   const [sortColumn, setSortColumn] = useState('title');
   const breakpoints = useBreakpoints();
   const [isExporting, setIsExporting] = useState(false);
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastError, setToastError] = useState(false);
   const navigate = useNavigate();
 
   const sortOptions = [
@@ -325,6 +330,18 @@ export default function ExportPage() {
   // Use selectedResources from Polaris IndexTable
   const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(filteredProducts);
 
+  const showSuccessToast = (message) => {
+    setToastMessage(message);
+    setToastError(false);
+    setToastActive(true);
+  };
+
+  const showErrorToast = (message) => {
+    setToastMessage(message);
+    setToastError(true);
+    setToastActive(true);
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
@@ -345,17 +362,17 @@ export default function ExportPage() {
         console.log('[Export][Frontend] Error response:', data);
         if (data.upgradeUrl) {
           console.log('[Export][Frontend] upgradeUrl:', data.upgradeUrl);
-          alert(data.error || "You have reached your export limit. Please upgrade your plan.");
+          showErrorToast(data.error || "You have reached your export limit. Please upgrade your plan.");
           navigate('/app/billing');
           return;
         }
-        // If error is 401, redirect to login
         if (response.status === 401) {
           const shop = new URLSearchParams(window.location.search).get('shop');
           const returnTo = `/app/export${shop ? `?shop=${shop}` : ''}`;
           window.location.href = `/auth?returnTo=${encodeURIComponent(returnTo)}`;
           return;
         }
+        showErrorToast(data.error || 'Export failed');
         throw new Error(data.error || 'Export failed');
       }
 
@@ -380,16 +397,18 @@ export default function ExportPage() {
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
       console.log('[Export][Frontend] Download triggered and URL revoked.');
+      showSuccessToast('Export successful!');
     } catch (error) {
       console.error('[Export][Frontend] Fetch or code error:', error);
       if (error.message.includes('Export limit exceeded')) {
         const shopId = new URLSearchParams(window.location.search).get('shop');
         if (shopId) {
+          showErrorToast('Export limit exceeded. Please upgrade your plan.');
           navigate('/app/billing');
           return;
         }
       }
-      setAuthError(error.message || 'Failed to export products. Please try again.');
+      showErrorToast(error.message || 'Failed to export products. Please try again.');
     } finally {
       setIsExporting(false);
       handleCloseExportModal();
@@ -508,189 +527,194 @@ export default function ExportPage() {
   const togglePopoverActive = useCallback(() => setPopoverActive((active) => !active), []);
 
   return (
-    <Page fullWidth>
-      {/* Top header: Title and action buttons */}
-      <Box paddingBlockStart="4" paddingBlockEnd="2">
-        <div style={{ marginBottom: 10 }}>
-          <InlineStack align="end" gap="100" blockAlign="center" style={{ paddingBottom: 10 }}>
-            <Button onClick={() => handleOpenExportModal('all')} loading={isExporting} disabled={isExporting}>
-                    Export All Product
-            </Button>
-            <Button
-              variant="primary"
-                    onClick={() => handleOpenExportModal('selected')}
-              className="polarisBlackButton"
-              loading={isExporting}
-              disabled={isExporting}
-                  >
-                    Export Selected Product
-            </Button>
-          </InlineStack>
-        </div>
-      </Box>
-      <Box padding="0">
-        <LegacyCard style={{ paddingBottom: '1px', marginTop: '24px' }}>
-          <IndexFilters
-            sortOptions={sortOptions.map(opt => ({
-              label: opt.label,
-              value: `${opt.value} asc`,
-              directionLabel: opt.directionLabel,
-            })).concat(sortOptions.map(opt => ({
-              label: opt.label,
-              value: `${opt.value} desc`,
-              directionLabel: opt.directionLabel,
-            })))}
-            sortSelected={sortSelected}
-            queryValue={searchValue}
-            queryPlaceholder="Search products"
-            onQueryChange={setSearchValue}
-            onQueryClear={() => setSearchValue('')}
-            onSort={setSortSelected}
-            mode={mode}
-            setMode={setMode}
-            tabs={tabs}
-            selected={selectedTab}
-            onSelect={setSelectedTab}
-            filters={filters}
-            appliedFilters={[
-              ...(vendorFilter.length ? [{key: 'vendor', label: `Vendors: ${vendorFilter.join(', ')}`}]: []),
-              ...(tagFilter.length ? [{key: 'tag', label: `Tag: ${tagFilter.join(', ')}`}]: []),
-              ...(statusFilter.length ? [{key: 'status', label: `Statuses: ${statusFilter.join(', ')}`}]: []),
-            ]}
-            onClearAll={handleFiltersClearAll}
-            canCreateNewView
-            views={views}
-            selectedView={selectedView}
-            onSelectView={setSelectedView}
-            onCreateNewView={name => setViews([...views, {name}])}
-            onSaveView={() => {}}
-            onUpdateView={() => {}}
-            onRemoveView={() => {}}
-            cancelAction={{
-              onAction: () => {
-                setSearchValue('');
-                setPage(1);
-                setCursorStack([]);
-                setEndCursor(null);
-                fetchProducts(null, 1);
-              },
-              disabled: false,
-              loading: false,
-            }}
-          />
-          {/* Show loading spinner or table */}
-            {isLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-                <Spinner accessibilityLabel="Loading products" size="large" />
-              </div>
-            ) : (
-            <IndexTable
-              condensed={breakpoints.smDown}
-              resourceName={resourceName}
-              itemCount={filteredProducts.length}
-              selectedItemsCount={
-                allResourcesSelected ? 'All' : selectedResources.length
-              }
-              onSelectionChange={handleSelectionChange}
-              headings={[
-                { title: 'Product',
-                  sortable: true,
-                  sortDirection: sortColumn === 'title' ? sortDirection : undefined,
-                  onSort: () => {
-                    const newDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-                    setSortDirection(newDirection);
-                    setSortColumn('title');
-                    setSortSelected([`title ${newDirection}`]);
-                  }
-                },
-                { title: 'Status' },
-                { title: 'Inventory' },
-                { title: 'Type' },
-                { title: 'Vendor' },
-              ]}
-              fullWidth
-            >
-              {rowMarkup}
-            </IndexTable>
-          )}
-          {/* Polaris Pagination below the table, left-aligned with range label */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start',marginTop: '10px', marginLeft: '32px', gap: '12px' ,paddingBottom: '20px'}}>
-            <Pagination
-              hasPrevious={cursorStack.length > 0}
-              onPrevious={isLoading ? undefined : handlePrevious}
-              hasNext={hasNextPage}
-              onNext={isLoading ? undefined : handleNext}
-              previousTooltip={isLoading ? 'Loading...' : undefined}
-              nextTooltip={isLoading ? 'Loading...' : undefined}
-            />
-            {/* Range label */}
-            <span style={{ fontSize: 16, color: '#202223', marginLeft: 8 }}>
-              {/* Calculate range based on page and products.length */}
-              {products.length > 0 ? `${(page - 1) * PAGE_SIZE + 1}-${(page - 1) * PAGE_SIZE + products.length}` : '0-0'}
-            </span>
+    <Frame>
+      <Page fullWidth>
+        {/* Top header: Title and action buttons */}
+        <Box paddingBlockStart="4" paddingBlockEnd="2">
+          <div style={{ marginBottom: 10 }}>
+            <InlineStack align="end" gap="100" blockAlign="center" style={{ paddingBottom: 10 }}>
+              <Button onClick={() => handleOpenExportModal('all')} loading={isExporting} disabled={isExporting}>
+                        Export All Product
+              </Button>
+              <Button
+                variant="primary"
+                        onClick={() => handleOpenExportModal('selected')}
+                className="polarisBlackButton"
+                loading={isExporting}
+                disabled={isExporting}
+                    >
+                        Export Selected Product
+              </Button>
+            </InlineStack>
           </div>
-        </LegacyCard>
-      </Box>
-      {/* Export Modal */}
-      <Modal
-        open={exportModalOpen}
-        onClose={handleCloseExportModal}
-        title="Export Products by CSV"
-        primaryAction={{
-          content: 'Export Products',
-          onAction: () => {
-            console.log('Export button clicked!');
-            handleExport();
-          },
-          primary: true,
-          destructive: false,
-          loading: isExporting,
-          disabled: isExporting,
-        }}
-        secondaryActions={[
-          {
-            content: 'Cancel',
-            onAction: handleCloseExportModal,
+        </Box>
+        <Box padding="0">
+          <LegacyCard style={{ paddingBottom: '1px', marginTop: '24px' }}>
+            <IndexFilters
+              sortOptions={sortOptions.map(opt => ({
+                label: opt.label,
+                value: `${opt.value} asc`,
+                directionLabel: opt.directionLabel,
+              })).concat(sortOptions.map(opt => ({
+                label: opt.label,
+                value: `${opt.value} desc`,
+                directionLabel: opt.directionLabel,
+              })))}
+              sortSelected={sortSelected}
+              queryValue={searchValue}
+              queryPlaceholder="Search products"
+              onQueryChange={setSearchValue}
+              onQueryClear={() => setSearchValue('')}
+              onSort={setSortSelected}
+              mode={mode}
+              setMode={setMode}
+              tabs={tabs}
+              selected={selectedTab}
+              onSelect={setSelectedTab}
+              filters={filters}
+              appliedFilters={[
+                ...(vendorFilter.length ? [{key: 'vendor', label: `Vendors: ${vendorFilter.join(', ')}`}]: []),
+                ...(tagFilter.length ? [{key: 'tag', label: `Tag: ${tagFilter.join(', ')}`}]: []),
+                ...(statusFilter.length ? [{key: 'status', label: `Statuses: ${statusFilter.join(', ')}`}]: []),
+              ]}
+              onClearAll={handleFiltersClearAll}
+              canCreateNewView
+              views={views}
+              selectedView={selectedView}
+              onSelectView={setSelectedView}
+              onCreateNewView={name => setViews([...views, {name}])}
+              onSaveView={() => {}}
+              onUpdateView={() => {}}
+              onRemoveView={() => {}}
+              cancelAction={{
+                onAction: () => {
+                  setSearchValue('');
+                  setPage(1);
+                  setCursorStack([]);
+                  setEndCursor(null);
+                  fetchProducts(null, 1);
+                },
+                disabled: false,
+                loading: false,
+              }}
+            />
+            {/* Show loading spinner or table */}
+              {isLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+                  <Spinner accessibilityLabel="Loading products" size="large" />
+                </div>
+              ) : (
+              <IndexTable
+                condensed={breakpoints.smDown}
+                resourceName={resourceName}
+                itemCount={filteredProducts.length}
+                selectedItemsCount={
+                  allResourcesSelected ? 'All' : selectedResources.length
+                }
+                onSelectionChange={handleSelectionChange}
+                headings={[
+                  { title: 'Product',
+                    sortable: true,
+                    sortDirection: sortColumn === 'title' ? sortDirection : undefined,
+                    onSort: () => {
+                      const newDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                      setSortDirection(newDirection);
+                      setSortColumn('title');
+                      setSortSelected([`title ${newDirection}`]);
+                    }
+                  },
+                  { title: 'Status' },
+                  { title: 'Inventory' },
+                  { title: 'Type' },
+                  { title: 'Vendor' },
+                ]}
+                fullWidth
+              >
+                {rowMarkup}
+              </IndexTable>
+            )}
+            {/* Polaris Pagination below the table, left-aligned with range label */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start',marginTop: '10px', marginLeft: '32px', gap: '12px' ,paddingBottom: '20px'}}>
+              <Pagination
+                hasPrevious={cursorStack.length > 0}
+                onPrevious={isLoading ? undefined : handlePrevious}
+                hasNext={hasNextPage}
+                onNext={isLoading ? undefined : handleNext}
+                previousTooltip={isLoading ? 'Loading...' : undefined}
+                nextTooltip={isLoading ? 'Loading...' : undefined}
+              />
+              {/* Range label */}
+              <span style={{ fontSize: 16, color: '#202223', marginLeft: 8 }}>
+                {/* Calculate range based on page and products.length */}
+                {products.length > 0 ? `${(page - 1) * PAGE_SIZE + 1}-${(page - 1) * PAGE_SIZE + products.length}` : '0-0'}
+              </span>
+            </div>
+          </LegacyCard>
+        </Box>
+        {/* Export Modal */}
+        <Modal
+          open={exportModalOpen}
+          onClose={handleCloseExportModal}
+          title="Export Products by CSV"
+          primaryAction={{
+            content: 'Export Products',
+            onAction: () => {
+              console.log('Export button clicked!');
+              handleExport();
+            },
+            primary: true,
+            destructive: false,
+            loading: isExporting,
             disabled: isExporting,
-          },
-        ]}
-      >
-        <Modal.Section>
-          <BlockStack gap="400">
-            <div>
-              <Text as="h3" variant="headingSm">Export</Text>
-              <ChoiceList
-                title=""
-                choices={[
-                  { label: 'All Product', value: 'all' },
-                  { label: 'Selected Product', value: 'selected' },
-                ]}
-                selected={[exportType]}
-                onChange={([val]) => setExportType(val)}
-              />
-            </div>
-            <div>
-              <Text as="h3" variant="headingSm">Export as</Text>
-              <Select
-                options={[
-                  { label: 'Custom CSV', value: 'customcsv' },
-                  { label: 'Shopify CSV', value: 'shopify' },
-                  { label: 'WooCommerce CSV', value: 'woocommerce' },
-                ]}
-                value={exportFormat}
-                onChange={setExportFormat}
-              />
-            </div>
-            <Text as="p" variant="bodySm">
-              Learn more about{' '}
-              <Link url="#" monochrome removeUnderline>
-                export CSV
-              </Link>
-            </Text>
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
-      <Footer />
-    </Page>
+          }}
+          secondaryActions={[
+            {
+              content: 'Cancel',
+              onAction: handleCloseExportModal,
+              disabled: isExporting,
+            },
+          ]}
+        >
+          <Modal.Section>
+            <BlockStack gap="400">
+              <div>
+                <Text as="h3" variant="headingSm">Export</Text>
+                <ChoiceList
+                  title=""
+                  choices={[
+                    { label: 'All Product', value: 'all' },
+                    { label: 'Selected Product', value: 'selected' },
+                  ]}
+                  selected={[exportType]}
+                  onChange={([val]) => setExportType(val)}
+                />
+              </div>
+              <div>
+                <Text as="h3" variant="headingSm">Export as</Text>
+                <Select
+                  options={[
+                    { label: 'Custom CSV', value: 'customcsv' },
+                    { label: 'Shopify CSV', value: 'shopify' },
+                    { label: 'WooCommerce CSV', value: 'woocommerce' },
+                  ]}
+                  value={exportFormat}
+                  onChange={setExportFormat}
+                />
+              </div>
+              <Text as="p" variant="bodySm">
+                Learn more about{' '}
+                <Link url="#" monochrome removeUnderline>
+                  export CSV
+                </Link>
+              </Text>
+            </BlockStack>
+          </Modal.Section>
+        </Modal>
+        {toastActive && (
+          <Toast content={toastMessage} error={toastError} onDismiss={() => setToastActive(false)} />
+        )}
+        <Footer />
+      </Page>
+    </Frame>
   );
 } 

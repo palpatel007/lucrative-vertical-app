@@ -11,6 +11,7 @@ export const action = async ({ request }) => {
   const format = searchParams.get('format') || 'woocommerce';
   const type = searchParams.get('type') || 'all';
   let productIds = [];
+  let exportLimit = 100; // Default fallback value
   try {
     const body = await request.json();
     productIds = body.productIds || [];
@@ -71,7 +72,7 @@ export const action = async ({ request }) => {
     }
 
     // Enforce the export limit for the plan BEFORE fetching
-    let exportLimit = limitCheck.limit - limitCheck.current;
+    exportLimit = limitCheck.limit - limitCheck.current;
     if (type === 'selected' && productIds.length > exportLimit) {
       console.log('[Export][PlanLimits] Slicing productIds to exportLimit:', exportLimit);
       productIds = productIds.slice(0, exportLimit);

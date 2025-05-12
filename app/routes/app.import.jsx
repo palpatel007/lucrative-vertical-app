@@ -15,7 +15,8 @@ import {
   Popover,
   ActionList,
   DropZone,
-  InlineStack
+  InlineStack,
+  Toast
 } from '@shopify/polaris';
 import '../styles/globals.css';
 import Footer from '../components/Footer';
@@ -133,8 +134,23 @@ export default function Import() {
     (tutorialPage - 1) * TUTORIALS_PER_PAGE,
     tutorialPage * TUTORIALS_PER_PAGE
   );
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastError, setToastError] = useState(false);
 
   const handleDropZoneDrop = useCallback((_dropFiles, acceptedFiles) => setFiles(acceptedFiles), []);
+
+  const showSuccessToast = (message) => {
+    setToastMessage(message);
+    setToastError(false);
+    setToastActive(true);
+  };
+
+  const showErrorToast = (message) => {
+    setToastMessage(message);
+    setToastError(true);
+    setToastActive(true);
+  };
 
   const handleImportClick = async () => {
     if (files.length === 0) return;
@@ -154,11 +170,14 @@ export default function Import() {
       });
       const result = await response.json();
       if (result.success) {
+        showSuccessToast(`Successfully imported ${result.results.successful} products!`);
         setImportResult({ success: true, message: `Imported ${result.results.successful} products!` });
       } else {
+        showErrorToast(result.error || 'Import failed.');
         setImportResult({ success: false, message: result.error || 'Import failed.' });
       }
     } catch (error) {
+      showErrorToast(error.message);
       setImportResult({ success: false, message: error.message });
     } finally {
       setImportLoading(false);
@@ -382,6 +401,9 @@ export default function Import() {
           </div>
         </Card>
       </div>
+      {toastActive && (
+        <Toast content={toastMessage} error={toastError} onDismiss={() => setToastActive(false)} />
+      )}
     </Page>
   );
 } 

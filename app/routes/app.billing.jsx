@@ -10,12 +10,16 @@ import {
   InlineGrid,
   Icon,
   Toast,
+  Spinner,
+  Frame,
 } from '@shopify/polaris';
 import { CheckCircleIcon } from '@shopify/polaris-icons';
-import { useState, useCallback } from 'react';
-import { useSubmit, useLoaderData } from '@remix-run/react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSubmit, useLoaderData, useNavigate } from '@remix-run/react';
 import { authenticate } from '../shopify.server';
 import { redirect } from '@remix-run/node';
+import { useAppBridge } from '@shopify/app-bridge-react';
+import { Redirect } from '@shopify/app-bridge/actions';
 
 import frame1 from '../assets/Frame (1).png';
 import frame2 from '../assets/Frame (2).png';
@@ -102,7 +106,14 @@ export const loader = async ({ request }) => {
           if (retryResponse.ok) {
             const data = await retryResponse.json();
             console.log('[Billing Loader] Successfully fetched billing data after refresh');
-            return { subscription: data.subscription, plans: data.plans };
+            return { 
+              subscription: data.subscription, 
+              plans: data.plans,
+              session: {
+                shop: session.shop,
+                accessToken: session.accessToken
+              }
+            };
           }
         }
         
@@ -134,7 +145,14 @@ export const loader = async ({ request }) => {
       throw new Error('Invalid billing data received');
     }
     
-    return { subscription: data.subscription, plans: data.plans };
+    return { 
+      subscription: data.subscription, 
+      plans: data.plans,
+      session: {
+        shop: session.shop,
+        accessToken: session.accessToken
+      }
+    };
   } catch (error) {
     console.error('[Billing Loader] Error:', {
       message: error.message,
@@ -152,22 +170,57 @@ export default function BillingPage() {
   const { subscription, plans } = useLoaderData();
   const [toastActive, setToastActive] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [loadingPlan, setLoadingPlan] = useState(null);
   const submit = useSubmit();
+  const navigate = useNavigate();
+  const { session } = useLoaderData();
+  const app = useAppBridge();
 
-  const handleUpgrade = useCallback(async (plan) => {
+  const handleUpgrade = async (planName) => {
     try {
-        const formData = new FormData();
-        formData.append('plan', plan);
-        
-        submit(formData, { method: 'post', action: '/api/billing' });
+      setLoadingPlan(planName);
+      const formData = new FormData();
+      formData.append('plan', planName);
+      formData.append('shop', session.shop);
+
+      const response = await fetch('/api/billing', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to process upgrade');
+      }
+
+      if (!data.confirmationUrl) {
+        throw new Error('No confirmation URL received from server');
+      }
+
+      // Use App Bridge for top-level redirect if available
+      if (app && Redirect) {
+        const redirect = Redirect.create(app);
+        redirect.dispatch(Redirect.Action.REMOTE, data.confirmationUrl);
+      } else {
+        window.location.href = data.confirmationUrl;
+      }
     } catch (error) {
-        console.error('Error upgrading plan:', error);
-        setToastMessage('Failed to upgrade plan. Please try again.');
-        setToastActive(true);
+      setToastMessage('Failed to process upgrade. ' + (error.message || 'Please try again.'));
+      setToastActive(true);
+      setLoadingPlan(null);
     }
-  }, [submit]);
+  };
 
   const toggleToast = useCallback(() => setToastActive((active) => !active), []);
+
+  const showSuccessToast = (message) => {
+    setToastMessage(message);
+    setToastActive(true);
+  };
 
   const plansList = [
     {
@@ -194,9 +247,14 @@ export default function BillingPage() {
         fullWidth 
         variant='primary'
         onClick={() => handleUpgrade('SHOP PLAN')}
-        disabled={subscription?.plan === 'SHOP PLAN'}
+        disabled={subscription?.plan === 'SHOP PLAN' || loadingPlan === 'SHOP PLAN'}
       >
-        {subscription?.plan === 'SHOP PLAN' ? 'Current Plan' : 'Upgrade'}
+        {loadingPlan === 'SHOP PLAN' ? (
+          <InlineStack gap="200" align="center">
+            <Spinner size="small" />
+            <span>Upgrading...</span>
+          </InlineStack>
+        ) : subscription?.plan === 'SHOP PLAN' ? 'Current Plan' : 'Upgrade'}
       </Button>,
     },
     {
@@ -212,9 +270,14 @@ export default function BillingPage() {
         fullWidth 
         variant='primary'
         onClick={() => handleUpgrade('WAREHOUSE PLAN')}
-        disabled={subscription?.plan === 'WAREHOUSE PLAN'}
+        disabled={subscription?.plan === 'WAREHOUSE PLAN' || loadingPlan === 'WAREHOUSE PLAN'}
       >
-        {subscription?.plan === 'WAREHOUSE PLAN' ? 'Current Plan' : 'Upgrade'}
+        {loadingPlan === 'WAREHOUSE PLAN' ? (
+          <InlineStack gap="200" align="center">
+            <Spinner size="small" />
+            <span>Upgrading...</span>
+          </InlineStack>
+        ) : subscription?.plan === 'WAREHOUSE PLAN' ? 'Current Plan' : 'Upgrade'}
       </Button>,
     },
     {
@@ -231,9 +294,14 @@ export default function BillingPage() {
         fullWidth 
         variant='primary'
         onClick={() => handleUpgrade('FACTORY PLAN')}
-        disabled={subscription?.plan === 'FACTORY PLAN'}
+        disabled={subscription?.plan === 'FACTORY PLAN' || loadingPlan === 'FACTORY PLAN'}
       >
-        {subscription?.plan === 'FACTORY PLAN' ? 'Current Plan' : 'Upgrade'}
+        {loadingPlan === 'FACTORY PLAN' ? (
+          <InlineStack gap="200" align="center">
+            <Spinner size="small" />
+            <span>Upgrading...</span>
+          </InlineStack>
+        ) : subscription?.plan === 'FACTORY PLAN' ? 'Current Plan' : 'Upgrade'}
       </Button>,
     },
     {
@@ -250,9 +318,14 @@ export default function BillingPage() {
         fullWidth 
         variant='primary'
         onClick={() => handleUpgrade('FRANCHISE PLAN')}
-        disabled={subscription?.plan === 'FRANCHISE PLAN'}
+        disabled={subscription?.plan === 'FRANCHISE PLAN' || loadingPlan === 'FRANCHISE PLAN'}
       >
-        {subscription?.plan === 'FRANCHISE PLAN' ? 'Current Plan' : 'Upgrade'}
+        {loadingPlan === 'FRANCHISE PLAN' ? (
+          <InlineStack gap="200" align="center">
+            <Spinner size="small" />
+            <span>Upgrading...</span>
+          </InlineStack>
+        ) : subscription?.plan === 'FRANCHISE PLAN' ? 'Current Plan' : 'Upgrade'}
       </Button>,
     },
     {
@@ -270,63 +343,65 @@ export default function BillingPage() {
   ];
 
   return (
-    <div className="billing-page">
-    <Page>
-      <Box paddingBlockStart="400" paddingBlockEnd="400">
-          <Box paddingBlockEnd="400">
-            <Text variant="headingLg" as="h2" fontWeight="bold" alignment="left" marginBlockEnd="400">
-              Pricing Plans
-            </Text>
+    <Frame>
+      <div className="billing-page">
+        <Page>
+          <Box paddingBlockStart="400" paddingBlockEnd="400">
+            <Box paddingBlockEnd="400">
+              <Text variant="headingLg" as="h2" fontWeight="bold" alignment="left" marginBlockEnd="400">
+                Pricing Plans
+              </Text>
+            </Box>
+            <InlineGrid columns={3} rows={2} gap="400">
+              {plansList.map((plan, idx) => (
+                <Card key={idx} padding="400" background="bg-surface" borderRadius="2xl" style={{ minWidth: 300, maxWidth: 340, flex: 1 }}>
+                  <BlockStack gap="200" align="center">
+                    <img
+                      src={
+                        idx === 0 ? free :
+                        idx === 1 ? frame1 :
+                        idx === 2 ? group4 :
+                        idx === 3 ? frame2 :
+                        idx === 4 ? frame3 :
+                        idx === 5 ? frame4 :
+                        tutorialIcon
+                      }
+                      alt={plan.name}
+                      style={{ display: 'block', width: 48, height: 48, margin: '0 auto', marginBottom: 12 }}
+                    />
+                    {plan.badge && <Box marginBlockEnd="200">{plan.badge}</Box>}
+                    <div style={{ textAlign: 'center' }}>
+                      <Text variant="headingMd" fontWeight="bold">{plan.name}</Text>
+                      <Text variant="headingLg" fontWeight="bold">{plan.price}<span style={{ fontWeight: 400, fontSize: 18 }}>{plan.period}</span></Text>
+                    </div>
+                    {plan.button}
+                    <ul style={{ marginTop: 16, textAlign: 'left', paddingLeft: 0, listStyle: 'none' }}>
+                      {plan.features.map((feature, i) => (
+                        <li
+                          key={i}
+                          style={{
+                            fontSize: 15,
+                            marginBottom: 8,
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 8,
+                          }}
+                        >
+                          <Icon source={CheckCircleIcon} color="success" />
+                          <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', flex: 1 }}>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </BlockStack>
+                </Card>
+              ))}
+            </InlineGrid>
           </Box>
-          <InlineGrid columns={3} rows={2} gap="400">
-            {plansList.map((plan, idx) => (
-              <Card key={idx} padding="400" background="bg-surface" borderRadius="2xl" style={{ minWidth: 300, maxWidth: 340, flex: 1 }}>
-                <BlockStack gap="200" align="center">
-                  <img
-                    src={
-                      idx === 0 ? free :
-                      idx === 1 ? frame1 :
-                      idx === 2 ? group4 :
-                      idx === 3 ? frame2 :
-                      idx === 4 ? frame3 :
-                      idx === 5 ? frame4 :
-                      tutorialIcon
-                    }
-                    alt={plan.name}
-                    style={{ display: 'block', width: 48, height: 48, margin: '0 auto', marginBottom: 12 }}
-                  />
-                  {plan.badge && <Box marginBlockEnd="200">{plan.badge}</Box>}
-                  <div style={{ textAlign: 'center' }}>
-                    <Text variant="headingMd" fontWeight="bold">{plan.name}</Text>
-                    <Text variant="headingLg" fontWeight="bold">{plan.price}<span style={{ fontWeight: 400, fontSize: 18 }}>{plan.period}</span></Text>
-                  </div>
-                  {plan.button}
-                  <ul style={{ marginTop: 16, textAlign: 'left', paddingLeft: 0, listStyle: 'none' }}>
-                    {plan.features.map((feature, i) => (
-                      <li
-                        key={i}
-                        style={{
-                          fontSize: 15,
-                          marginBottom: 8,
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 8,
-                        }}
-                      >
-                        <Icon source={CheckCircleIcon} color="success" />
-                        <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', flex: 1 }}>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </BlockStack>
-              </Card>
-            ))}
-        </InlineGrid>
-      </Box>
-    </Page>
-      {toastActive && (
-        <Toast content={toastMessage} onDismiss={toggleToast} />
-      )}
-    </div>
+        </Page>
+        {toastActive && (
+          <Toast content={toastMessage} onDismiss={toggleToast} />
+        )}
+      </div>
+    </Frame>
   );
 }

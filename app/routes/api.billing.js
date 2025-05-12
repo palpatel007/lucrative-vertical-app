@@ -1,10 +1,12 @@
 import { json, redirect } from '@remix-run/node';
 import { authenticate } from '../shopify.server.js';
 import { Subscription } from '../models/subscription.js';
+import { Shop } from '../models/Shop.js';
 import { PLANS } from '../config/plans.js';
 import { connectDatabase } from '../utils/database.js';
 
 export const loader = async ({ request }) => {
+    let shop = null;
     try {
         console.log('[Billing API] Starting billing API request');
         
@@ -20,13 +22,13 @@ export const loader = async ({ request }) => {
             return json({ error: 'Database connection failed' }, { status: 500 });
         }
 
-        // Get shop from query params
+        // Get shop name from query params
         const url = new URL(request.url);
-        const shop = url.searchParams.get('shop');
+        const shopName = url.searchParams.get('shop');
         
-        if (!shop) {
-            console.error('[Billing API] No shop parameter provided');
-            return json({ error: 'Shop parameter is required' }, { status: 400 });
+        if (!shopName) {
+            console.error('[Billing API] No shop name provided');
+            return json({ error: 'Shop name is required' }, { status: 400 });
         }
 
         // Get access token from headers
@@ -36,12 +38,32 @@ export const loader = async ({ request }) => {
             return json({ error: 'Access token is required' }, { status: 401 });
         }
 
-        console.log('[Billing API] Processing request for shop:', shop);
+        // Find shop ID from database using shop name
+        try {
+            shop = await Shop.findOne({ shop: shopName });
+            if (!shop) {
+                console.error('[Billing API] Shop not found:', shopName);
+                return json({ error: 'Shop not found' }, { status: 404 });
+            }
+            console.log('[Billing API] Found shop:', {
+                shopId: shop._id,
+                shopName: shop.shop
+            });
+        } catch (dbError) {
+            console.error('[Billing API] Error finding shop:', {
+                message: dbError.message,
+                stack: dbError.stack
+            });
+            return json({ error: 'Failed to find shop' }, { status: 500 });
+        }
+
+        const shopId = shop._id;
+        console.log('[Billing API] Processing request for shop ID:', shopId);
 
         // Get current subscription
         let subscription;
         try {
-            subscription = await Subscription.findOne({ shopId: shop });
+            subscription = await Subscription.findOne({ shopId: shopId });
             console.log('[Billing API] Found subscription:', {
                 exists: !!subscription,
                 status: subscription?.status,
@@ -58,9 +80,9 @@ export const loader = async ({ request }) => {
         // If no subscription exists, create a new FREE subscription
         if (!subscription) {
             try {
-                console.log('[Billing API] Creating new FREE subscription for shop:', shop);
+                console.log('[Billing API] Creating new FREE subscription for shop ID:', shopId);
                 subscription = await Subscription.create({
-                    shopId: shop,
+                    shopId: shopId,
                     accessToken: accessToken,
                     plan: 'FREE',
                     status: 'active',
@@ -171,13 +193,15 @@ export const loader = async ({ request }) => {
     } catch (error) {
         console.error('[Billing API] Error:', {
             message: error.message,
-            stack: error.stack
+            stack: error.stack,
+            shop: shop ? { id: shop._id, name: shop.shop } : null
         });
         return json({ error: 'Internal server error' }, { status: 500 });
     }
 };
 
 export const action = async ({ request }) => {
+    let shop = null;
     try {
         const { session } = await authenticate.admin(request);
         if (!session) {
@@ -186,6 +210,28 @@ export const action = async ({ request }) => {
 
         const formData = await request.formData();
         const planName = formData.get('plan');
+        const shopName = formData.get('shop');
+
+        if (!shopName) {
+            return json({ error: 'Shop name is required' }, { status: 400 });
+        }
+
+        // Find shop ID from database
+        try {
+            shop = await Shop.findOne({ shop: shopName });
+            if (!shop) {
+                console.error('[Billing API] Shop not found:', shopName);
+                return json({ error: 'Shop not found' }, { status: 404 });
+            }
+        } catch (dbError) {
+            console.error('[Billing API] Error finding shop:', {
+                message: dbError.message,
+                stack: dbError.stack
+            });
+            return json({ error: 'Failed to find shop' }, { status: 500 });
+        }
+
+        const shopId = shop._id;
 
         if (!planName || !PLANS[planName]) {
             return json({ error: 'Invalid plan selected' }, { status: 400 });
@@ -197,7 +243,9 @@ export const action = async ({ request }) => {
         const url = new URL(request.url);
         const baseUrl = `${url.protocol}//${url.host}`;
         
-        // Create recurring charge
+        console.log('[Billing API] Creating recurring charge for plan:', planName);
+        
+        // Create recurring charge with Shopify
         const response = await fetch(`https://${session.shop}/admin/api/2024-01/recurring_application_charges.json`, {
             method: 'POST',
             headers: {
@@ -206,14 +254,21 @@ export const action = async ({ request }) => {
             },
             body: JSON.stringify({
                 recurring_application_charge: {
-                    name: plan.name,
+                    name: planName,
                     price: plan.price,
-                    return_url: `${baseUrl}/billing/confirm?shop=${session.shop}&plan=${planName}`,
+                    return_url: `${baseUrl}/app/billing/confirm?shop=${shopName}&plan=${planName}`,
                     test: process.env.NODE_ENV !== 'production',
                     trial_days: 0,
                     terms: 'Monthly subscription',
                     capped_amount: plan.price,
-                    interval: 'EVERY_30_DAYS'
+                    interval: 'EVERY_30_DAYS',
+                    billing_on: new Date().toISOString().split('T')[0],
+                    activated_on: null,
+                    cancelled_on: null,
+                    trial_ends_on: null,
+                    balance_used: 0,
+                    balance_remaining: plan.price,
+                    risk_level: 0
                 },
             }),
         });
@@ -225,31 +280,54 @@ export const action = async ({ request }) => {
             return json({ error: 'Charge creation failed' }, { status: 500 });
         }
 
+        console.log('[Billing API] Charge created successfully, redirecting to:', data.recurring_application_charge.confirmation_url);
+
         // Store pending subscription
         await Subscription.findOneAndUpdate(
-            { shopId: session.shop },
+            { shopId: shopId },
             {
                 shopifyChargeId: data.recurring_application_charge.id,
                 plan: planName,
                 status: 'pending',
-                test: process.env.NODE_ENV !== 'production'
+                test: process.env.NODE_ENV !== 'production',
+                lastBillingDate: null,
+                nextBillingDate: null,
+                billingOn: new Date(),
+                cancelledOn: null,
+                trialEndsOn: null,
+                balanceUsed: 0,
+                balanceRemaining: plan.price
             },
             { upsert: true }
         );
 
-        return redirect(data.recurring_application_charge.confirmation_url);
+        // Return the confirmation URL for the client to redirect to
+        return json({ 
+            confirmationUrl: data.recurring_application_charge.confirmation_url 
+        });
     } catch (error) {
-        console.error('[Billing API] Error:', error);
+        console.error('[Billing API] Error:', {
+            message: error.message,
+            stack: error.stack,
+            shop: shop ? { id: shop._id, name: shop.shop } : null
+        });
         return json({ error: 'Internal server error' }, { status: 500 });
     }
 };
 
-export async function getSubscription(shop) {
-    if (!shop) {
-        throw new Error('Shop parameter is required');
+export async function getSubscription(shopName) {
+    if (!shopName) {
+        throw new Error('Shop name parameter is required');
     }
 
-    const subscription = await Subscription.findOne({ shopId: shop });
+    // Find shop ID from database
+    const shop = await Shop.findOne({ shop: shopName });
+    if (!shop) {
+        throw new Error('Shop not found');
+    }
+
+    const shopId = shop._id;
+    const subscription = await Subscription.findOne({ shopId: shopId });
 
     if (!subscription) {
         return {
