@@ -4,14 +4,19 @@ import {
   Text,
   Button,
   Badge,
-  BlockStack,
+  Link,
   InlineStack,
+  BlockStack,
   Box,
   InlineGrid,
   Icon,
   Toast,
   Spinner,
   Frame,
+  SkeletonPage,
+  SkeletonBodyText,
+  SkeletonDisplayText,
+  SkeletonThumbnail,
 } from '@shopify/polaris';
 import { CheckCircleIcon } from '@shopify/polaris-icons';
 import { useState, useCallback, useEffect } from 'react';
@@ -28,6 +33,7 @@ import frame4 from '../assets/Frame (4).png';
 import group4 from '../assets/Group (4).png';
 import free from '../assets/Frame.png';
 import tutorialIcon from '../assets/tutorialIcon.png';
+import Footer from '../components/Footer';
 
 export const loader = async ({ request }) => {
   try {
@@ -63,9 +69,9 @@ export const loader = async ({ request }) => {
       },
       credentials: 'include' // Include cookies in the request
     });
-    
+
     console.log('[Billing Loader] Billing API response status:', response.status);
-    
+
     if (!response.ok) {
       console.error('[Billing Loader] Failed to fetch billing data:', {
         status: response.status,
@@ -106,8 +112,8 @@ export const loader = async ({ request }) => {
           if (retryResponse.ok) {
             const data = await retryResponse.json();
             console.log('[Billing Loader] Successfully fetched billing data after refresh');
-            return { 
-              subscription: data.subscription, 
+            return {
+              subscription: data.subscription,
               plans: data.plans,
               session: {
                 shop: session.shop,
@@ -116,7 +122,7 @@ export const loader = async ({ request }) => {
             };
           }
         }
-        
+
         // If refresh failed, redirect to auth
         console.log('[Billing Loader] Session refresh failed, redirecting to auth');
         return redirect('/auth');
@@ -127,7 +133,7 @@ export const loader = async ({ request }) => {
         console.log('[Billing Loader] Authentication failed, redirecting to auth');
         return redirect('/auth');
       }
-      
+
       // For other errors, throw to be caught by the catch block
       throw new Error(`Failed to fetch billing data: ${response.status} ${response.statusText}`);
     }
@@ -139,14 +145,14 @@ export const loader = async ({ request }) => {
       subscriptionPlan: data.subscription?.plan,
       subscriptionStatus: data.subscription?.status
     });
-    
+
     if (!data || !data.plans || !Array.isArray(data.plans)) {
       console.error('[Billing Loader] Invalid response data:', data);
       throw new Error('Invalid billing data received');
     }
-    
-    return { 
-      subscription: data.subscription, 
+
+    return {
+      subscription: data.subscription,
       plans: data.plans,
       session: {
         shop: session.shop,
@@ -166,6 +172,82 @@ export const loader = async ({ request }) => {
   }
 };
 
+function BillingSkeleton() {
+  return (
+    <SkeletonPage>
+      {/* Header Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="large" />
+            <SkeletonBodyText lines={2} />
+          </div>
+        </Card>
+      </Box>
+
+      {/* Current Plan Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="medium" />
+            <Box paddingBlockStart="400">
+              <InlineStack gap="400" align="space-between">
+                <div style={{ flex: 1 }}>
+                  <SkeletonBodyText lines={2} />
+                </div>
+                <SkeletonThumbnail size="small" />
+              </InlineStack>
+            </Box>
+          </div>
+        </Card>
+      </Box>
+
+      {/* Plan Features Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="medium" />
+            <Box paddingBlockStart="400">
+              <BlockStack gap="200">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <InlineStack key={i} gap="200" align="start">
+                    <SkeletonThumbnail size="small" />
+                    <SkeletonBodyText lines={1} />
+                  </InlineStack>
+                ))}
+              </BlockStack>
+            </Box>
+          </div>
+        </Card>
+      </Box>
+
+      {/* Upgrade Options Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="medium" />
+            <Box paddingBlockStart="400">
+              <InlineGrid gap="400" columns={3}>
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <div style={{ padding: '20px' }}>
+                      <SkeletonDisplayText size="small" />
+                      <SkeletonBodyText lines={3} />
+                      <Box paddingBlockStart="200">
+                        <SkeletonThumbnail size="small" />
+                      </Box>
+                    </div>
+                  </Card>
+                ))}
+              </InlineGrid>
+            </Box>
+          </div>
+        </Card>
+      </Box>
+    </SkeletonPage>
+  );
+}
+
 export default function BillingPage() {
   const { subscription, plans } = useLoaderData();
   const [toastActive, setToastActive] = useState(false);
@@ -175,6 +257,7 @@ export default function BillingPage() {
   const navigate = useNavigate();
   const { session } = useLoaderData();
   const app = useAppBridge();
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleUpgrade = async (planName) => {
     try {
@@ -243,8 +326,8 @@ export default function BillingPage() {
         'Shopify, WooCommerce, Wix, BigCommerce, Squarespace',
         'Renews monthly',
       ],
-      button: <Button 
-        fullWidth 
+      button: <Button
+        fullWidth
         variant='primary'
         onClick={() => handleUpgrade('SHOP PLAN')}
         disabled={subscription?.plan === 'SHOP PLAN' || loadingPlan === 'SHOP PLAN'}
@@ -266,8 +349,8 @@ export default function BillingPage() {
         'Shopify, WooCommerce, Squarespace, Amazon, Alibaba, Custom Sheet',
         'Renews monthly',
       ],
-      button: <Button 
-        fullWidth 
+      button: <Button
+        fullWidth
         variant='primary'
         onClick={() => handleUpgrade('WAREHOUSE PLAN')}
         disabled={subscription?.plan === 'WAREHOUSE PLAN' || loadingPlan === 'WAREHOUSE PLAN'}
@@ -290,8 +373,8 @@ export default function BillingPage() {
         'Renews monthly',
         'Priority support',
       ],
-      button: <Button 
-        fullWidth 
+      button: <Button
+        fullWidth
         variant='primary'
         onClick={() => handleUpgrade('FACTORY PLAN')}
         disabled={subscription?.plan === 'FACTORY PLAN' || loadingPlan === 'FACTORY PLAN'}
@@ -314,8 +397,8 @@ export default function BillingPage() {
         'Renews monthly',
         'Priority support',
       ],
-      button: <Button 
-        fullWidth 
+      button: <Button
+        fullWidth
         variant='primary'
         onClick={() => handleUpgrade('FRANCHISE PLAN')}
         disabled={subscription?.plan === 'FRANCHISE PLAN' || loadingPlan === 'FRANCHISE PLAN'}
@@ -342,66 +425,78 @@ export default function BillingPage() {
     },
   ];
 
+  useEffect(() => {
+    // Simulate loading
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <BillingSkeleton />;
+  }
+
   return (
     <Frame>
-      <div className="billing-page">
-        <Page>
-          <Box paddingBlockStart="400" paddingBlockEnd="400">
-            <Box paddingBlockEnd="400">
-              <Text variant="headingLg" as="h2" fontWeight="bold" alignment="left" marginBlockEnd="400">
-                Pricing Plans
-              </Text>
-            </Box>
-            <InlineGrid columns={3} rows={2} gap="400">
-              {plansList.map((plan, idx) => (
-                <Card key={idx} padding="400" background="bg-surface" borderRadius="2xl" style={{ minWidth: 300, maxWidth: 340, flex: 1 }}>
-                  <BlockStack gap="200" align="center">
-                    <img
-                      src={
-                        idx === 0 ? free :
-                        idx === 1 ? frame1 :
-                        idx === 2 ? group4 :
-                        idx === 3 ? frame2 :
-                        idx === 4 ? frame3 :
-                        idx === 5 ? frame4 :
-                        tutorialIcon
-                      }
-                      alt={plan.name}
-                      style={{ display: 'block', width: 48, height: 48, margin: '0 auto', marginBottom: 12 }}
-                    />
-                    {plan.badge && <Box marginBlockEnd="200">{plan.badge}</Box>}
-                    <div style={{ textAlign: 'center' }}>
-                      <Text variant="headingMd" fontWeight="bold">{plan.name}</Text>
-                      <Text variant="headingLg" fontWeight="bold">{plan.price}<span style={{ fontWeight: 400, fontSize: 18 }}>{plan.period}</span></Text>
-                    </div>
-                    {plan.button}
-                    <ul style={{ marginTop: 16, textAlign: 'left', paddingLeft: 0, listStyle: 'none' }}>
-                      {plan.features.map((feature, i) => (
-                        <li
-                          key={i}
-                          style={{
-                            fontSize: 15,
-                            marginBottom: 8,
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 8,
-                          }}
-                        >
-                          <Icon source={CheckCircleIcon} color="success" />
-                          <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', flex: 1 }}>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </BlockStack>
-                </Card>
-              ))}
-            </InlineGrid>
+      <Page>
+        <Box paddingBlockStart="400">
+          <Box paddingBlockEnd="400">
+            <Text variant="headingLg" as="h2" fontWeight="bold" alignment="left" marginBlockEnd="400">
+              Pricing Plans
+            </Text>
           </Box>
-        </Page>
-        {toastActive && (
-          <Toast content={toastMessage} onDismiss={toggleToast} />
-        )}
-      </div>
+          <InlineGrid columns={3} rows={2} gap="400">
+            {plansList.map((plan, idx) => (
+              <Card key={idx} padding="400" background="bg-surface" borderRadius="2xl" style={{ minWidth: 300, maxWidth: 340, flex: 1 }}>
+                <BlockStack gap="200" align="center">
+                  <img
+                    src={
+                      idx === 0 ? free :
+                        idx === 1 ? frame1 :
+                          idx === 2 ? group4 :
+                            idx === 3 ? frame2 :
+                              idx === 4 ? frame3 :
+                                idx === 5 ? frame4 :
+                                  tutorialIcon
+                    }
+                    alt={plan.name}
+                    style={{ display: 'block', width: 48, height: 48, margin: '0 auto', marginBottom: 12 }}
+                  />
+                  {plan.badge && <Box marginBlockEnd="200">{plan.badge}</Box>}
+                  <Box>
+                    <Text variant="headingMd" fontWeight="bold" alignment="center">{plan.name}</Text>
+                    <Text variant="headingLg" fontWeight="bold" alignment="center">{plan.price}<span style={{ fontWeight: 400, fontSize: 18 }}>{plan.period}</span></Text>
+                  </Box>
+                  {plan.button}
+                  <ul style={{ marginTop: 16, textAlign: 'left', paddingLeft: 0, listStyle: 'none' }}>
+                    {plan.features.map((feature, i) => (
+                      <li
+                        key={i}
+                        style={{
+                          fontSize: 15,
+                          marginBottom: 8,
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 8,
+                        }}
+                      >
+                        <Icon source={CheckCircleIcon} tone="success" />
+                        <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', flex: 1 }}>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </BlockStack>
+              </Card>
+            ))}
+          </InlineGrid>
+        </Box>
+        <Footer />
+      </Page>
+      {toastActive && (
+        <Toast content={toastMessage} onDismiss={toggleToast} />
+      )}
     </Frame>
   );
 }

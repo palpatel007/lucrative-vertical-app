@@ -6,7 +6,6 @@ import {
   Text,
   Button,
   Badge,
-  Select,
   Link,
   Collapsible,
   ButtonGroup,
@@ -15,10 +14,13 @@ import {
   Box,
   Popover,
   ActionList,
-  VideoThumbnail,
   InlineGrid,
   Pagination,
   Icon,
+  SkeletonBodyText,
+  SkeletonDisplayText,
+  SkeletonThumbnail,
+  SkeletonPage,
 } from '@shopify/polaris';
 import '../styles/globals.css';
 import Footer from '../components/Footer';
@@ -37,6 +39,9 @@ import { Shop } from '../models/Shop';
 import { Subscription } from '../models/subscription';
 import { authenticate } from "../shopify.server";
 import { useLoaderData } from 'react-router-dom';
+import CountryFlag from 'react-country-flag';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 
 const tutorialData = [
   {
@@ -63,6 +68,41 @@ const tutorialData = [
     video: 'https://www.youtube.com/watch?v=4QFQ4QG8b8A',
     instruction: 'https://polaris.shopify.com/components/navigation/pagination',
   },
+];
+
+const LANGUAGE_OPTIONS = [
+  { code: 'en', label: 'English', country: 'US' },
+  { code: 'ar', label: 'Arabic', country: 'SA' },
+  { code: 'bg', label: 'Bulgarian', country: 'BG' },
+  { code: 'zh', label: 'Chinese', country: 'CN' },
+  { code: 'hr', label: 'Croatian', country: 'HR' },
+  { code: 'cs', label: 'Czech', country: 'CZ' },
+  { code: 'da', label: 'Danish', country: 'DK' },
+  { code: 'nl', label: 'Dutch', country: 'NL' },
+  { code: 'fi', label: 'Finnish', country: 'FI' },
+  { code: 'fr', label: 'French', country: 'FR' },
+  { code: 'de', label: 'German', country: 'DE' },
+  { code: 'el', label: 'Greek', country: 'GR' },
+  { code: 'he', label: 'Hebrew', country: 'IL' },
+  { code: 'hi', label: 'Hindi', country: 'IN' },
+  { code: 'hu', label: 'Hungarian', country: 'HU' },
+  { code: 'id', label: 'Indonesian', country: 'ID' },
+  { code: 'it', label: 'Italian', country: 'IT' },
+  { code: 'ja', label: 'Japanese', country: 'JP' },
+  { code: 'ko', label: 'Korean', country: 'KR' },
+  { code: 'ms', label: 'Malay', country: 'MY' },
+  { code: 'no', label: 'Norwegian', country: 'NO' },
+  { code: 'pl', label: 'Polish', country: 'PL' },
+  { code: 'pt', label: 'Portuguese', country: 'PT' },
+  { code: 'ro', label: 'Romanian', country: 'RO' },
+  { code: 'ru', label: 'Russian', country: 'RU' },
+  { code: 'es', label: 'Spanish', country: 'ES' },
+  { code: 'sv', label: 'Swedish', country: 'SE' },
+  { code: 'th', label: 'Thai', country: 'TH' },
+  { code: 'tr', label: 'Turkish', country: 'TR' },
+  { code: 'uk', label: 'Ukrainian', country: 'UA' },
+  { code: 'vi', label: 'Vietnamese', country: 'VN' },
+  // Add more as needed
 ];
 
 export async function loader({ request }) {
@@ -118,8 +158,9 @@ export async function loader({ request }) {
   }
 
   // Upsert subscription if not exists
+  let subscription;
   try {
-    let subscription = await Subscription.findOne({ shopId: shop._id });
+    subscription = await Subscription.findOne({ shopId: shop._id });
     if (!subscription) {
       subscription = await Subscription.create({
         shopId: shop._id,
@@ -138,15 +179,133 @@ export async function loader({ request }) {
     return json({ error: "Failed to upsert subscription" }, { status: 500 });
   }
 
-  // Return shop domain to client
-  return json({ shop: shopDomain });
+  // Return shop domain and plan to client
+  return json({ shop: shopDomain, plan: subscription.plan });
+}
+
+function DashboardSkeleton() {
+  return (
+    <SkeletonPage>
+      {/* MediaCard Banner Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ display: 'flex', gap: '20px', padding: '20px' }}>
+            <SkeletonThumbnail size="large" />
+            <div style={{ flex: 1 }}>
+              <SkeletonDisplayText size="medium" />
+              <SkeletonBodyText lines={3} />
+            </div>
+          </div>
+        </Card>
+      </Box>
+
+      {/* Welcome Bar Skeleton */}
+      <Box paddingBlockEnd="400">
+        <InlineStack gap="400" align="space-between">
+          <InlineStack gap="200">
+            <SkeletonThumbnail size="small" />
+            <SkeletonBodyText lines={1} />
+          </InlineStack>
+          <SkeletonThumbnail size="small" />
+        </InlineStack>
+      </Box>
+
+      {/* Steps Section Skeleton */}
+      <Box paddingBlockEnd="400">
+        <InlineGrid gap="400" columns={3}>
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <div style={{ padding: '20px' }}>
+                <SkeletonThumbnail size="large" />
+                <SkeletonDisplayText size="small" />
+                <SkeletonBodyText lines={2} />
+                <Box paddingBlockStart="200">
+                  <SkeletonThumbnail size="small" />
+                </Box>
+              </div>
+            </Card>
+          ))}
+        </InlineGrid>
+      </Box>
+
+      {/* Stats Section Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <InlineGrid gap="400" columns={4}>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i}>
+                  <SkeletonDisplayText size="small" />
+                  <SkeletonBodyText lines={1} />
+                </div>
+              ))}
+            </InlineGrid>
+          </div>
+        </Card>
+      </Box>
+
+      {/* Tutorials Section Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="medium" />
+            <SkeletonBodyText lines={1} />
+            <Box paddingBlockStart="400">
+              <InlineGrid gap="400" columns={2}>
+                {[1, 2].map((i) => (
+                  <Card key={i}>
+                    <div style={{ padding: '20px' }}>
+                      <InlineStack gap="200">
+                        <SkeletonThumbnail size="medium" />
+                        <div style={{ flex: 1 }}>
+                          <SkeletonDisplayText size="small" />
+                          <SkeletonBodyText lines={2} />
+                        </div>
+                      </InlineStack>
+                    </div>
+                  </Card>
+                ))}
+              </InlineGrid>
+            </Box>
+          </div>
+        </Card>
+      </Box>
+
+      {/* Help Section Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="medium" />
+            <Box paddingBlockStart="400">
+              <InlineGrid gap="400" columns={3}>
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <div style={{ padding: '20px' }}>
+                      <InlineStack gap="200">
+                        <SkeletonThumbnail size="small" />
+                        <div style={{ flex: 1 }}>
+                          <SkeletonBodyText lines={2} />
+                        </div>
+                      </InlineStack>
+                    </div>
+                  </Card>
+                ))}
+              </InlineGrid>
+            </Box>
+          </div>
+        </Card>
+      </Box>
+    </SkeletonPage>
+  );
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const [selectedFaq, setSelectedFaq] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [tutorialPage, setTutorialPage] = useState(1);
   const [selectedRange, setSelectedRange] = useState('7');
+  const [isLoading, setIsLoading] = useState(true);
   const TUTORIALS_PER_PAGE = 2;
   const totalPages = Math.ceil(tutorialData.length / TUTORIALS_PER_PAGE);
   const pagedTutorials = tutorialData.slice(
@@ -162,11 +321,19 @@ export default function Dashboard() {
       shop = loaderData.shop;
     }
     if (shop) {
-      fetch(`/api/stats?shop=${encodeURIComponent(shop)}`)
+      setIsLoading(true);
+      fetch(`/api/stats?shop=${encodeURIComponent(shop)}&range=${selectedRange}`)
         .then(res => res.json())
-        .then(data => setStats(data));
+        .then(data => {
+          setStats(data);
+          setIsLoading(false);
+        });
     }
-  }, [loaderData.shop]);
+  }, [loaderData.shop, selectedRange]);
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   // HelpSection logic moved here
   const faqs = [
@@ -177,19 +344,22 @@ export default function Dashboard() {
     'Why does the option not appear on my product detail page?',
   ];
 
-  const languageOptions = [
-    { label: '🇬🇧 English', value: 'en' },
-    { label: '🇩🇪 German', value: 'de' },
-    { label: '🇫🇷 French', value: 'fr' },
-    { label: '🇪🇸 Spanish', value: 'es' },
-  ];
+  // Utility function to format plan names
+  function formatPlanName(plan) {
+    if (!plan) return '';
+    return plan
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
 
   return (
     <Box background="bg-surface-secondary" minHeight="100vh" paddingBlockStart="600" paddingBlockEnd="600">
       <Page>
         {/* MediaCard Banner with image filling the left side */}
         <MediaCard
-          title="Tailoring your online presence to connect directly with your consumers"
+          title={t('welcome')}
           primaryAction={{
             content: 'Validate product',
             onAction: () => { },
@@ -224,7 +394,7 @@ export default function Dashboard() {
                   SBit - Bulk Product Upload
                 </Text>
               </Link>
-              <Badge status="info" tone="info">FREE Plan</Badge>
+              <Badge status={loaderData.plan === 'FREE' ? 'info' : 'success'} tone={loaderData.plan === 'FREE' ? 'info' : 'success'}>{loaderData.plan ? formatPlanName(loaderData.plan) : 'Free Plan'}</Badge>
             </InlineStack>
             <Box display="flex" alignItems="center" gap="200">
               <LanguageDropdown selectedLanguage={selectedLanguage} setSelectedLanguage={setSelectedLanguage} />
@@ -234,7 +404,7 @@ export default function Dashboard() {
 
 
         {/* Steps Section */}
-        <div style={{ marginBottom: 24 }}>
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <SpacingBackground>
             <InlineGrid gap="400" columns={3}>
               <Placeholder height="320px" width="307px">
@@ -265,7 +435,7 @@ export default function Dashboard() {
                 </div>
                 <Button variant="primary" fullWidth style={{ width: 288, height: 32 }}>Select Platform</Button>
               </Placeholder>
-              <Placeholder height="320px" width="307px">
+              <Placeholder height="320px" width="100%">
                 <img src={uploadIcon} alt="Upload" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12, marginBottom: 16 }} />
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
                   <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>Step 3: </span>
@@ -281,16 +451,16 @@ export default function Dashboard() {
               </Placeholder>
             </InlineGrid>
           </SpacingBackground>
-        </div>
+        </Box>
 
 
         {/* Date Range Dropdown */}
-        <div style={{ display: 'flex', justifyContent: 'flex-start', margin: '0 0 8px 0' }}>
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <DateRangeDropdown selectedRange={selectedRange} setSelectedRange={setSelectedRange} />
-        </div>
+        </Box>
 
         {/* Stats */}
-        <div style={{ marginBottom: 24 }}>
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <Card padding="500" background="bg-surface" borderRadius="2xl" flex="1" paddingBlockStart="600" paddingBlockEnd="600">
             <div style={{ width: '100%' }}>
               {/* Labels Row */}
@@ -318,10 +488,10 @@ export default function Dashboard() {
               </div>
             </div>
           </Card>
-        </div>
+        </Box>
 
         {/* Tutorials */}
-        <div style={{ marginBottom: 24 }}>
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
             <BlockStack gap="200">
               <Text variant="headingMd">Quick tutorials</Text>
@@ -330,10 +500,11 @@ export default function Dashboard() {
                 {pagedTutorials.map((tut, idx) => (
                   <Card key={idx} padding="400">
                     <Box background="bg-surface">
-                      <BlockStack gap="100">
+                      <div style={{ display: 'flex', gap: 5 }}>
+                        {/* Icon on the left */}
                         <Box
-                          width="48px"
-                          height="48px"
+                          width="60px"
+                          height="60px"
                           borderRadius="full"
                           background="#8B5CF6"
                           display="flex"
@@ -341,17 +512,20 @@ export default function Dashboard() {
                           justifyContent="center"
                           marginInlineEnd="200"
                         >
-                          <img src={tutorialIcon} alt="Tutorial" style={{ width: 28, height: 28 }} />
+                          <img src={tutorialIcon} alt="Tutorial" style={{ width: 40, height: 40 }} />
                         </Box>
-                        <Text variant="headingSm">{tut.title}</Text>
-                        <Text>{tut.desc}</Text>
-                        <ButtonGroup>
-                          <Button url={tut.video} icon={PlayIcon}>Watch video</Button>
-                          <Link url={tut.instruction} style={{ color: '#3574F2', fontWeight: 500 }}>
-                            Read instruction
-                          </Link>
-                        </ButtonGroup>
-                      </BlockStack>
+                        {/* Content on the right */}
+                        <BlockStack gap="100">
+                          <Text variant="headingSm">{tut.title}</Text>
+                          <Text>{tut.desc}</Text>
+                          <ButtonGroup>
+                            <Button url={tut.video} icon={PlayIcon}>Watch video</Button>
+                            <Link url={tut.instruction} style={{ color: '#3574F2', fontWeight: 500 }}>
+                              Read instruction
+                            </Link>
+                          </ButtonGroup>
+                        </BlockStack>
+                      </div>
                     </Box>
                   </Card>
                 ))}
@@ -367,10 +541,10 @@ export default function Dashboard() {
               </Box>
             </BlockStack>
           </Card>
-        </div>
+        </Box>
 
         {/* Help Section */ /* FAQ Section */}
-        <div style={{ marginBottom: 24 }}>
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <Card paddingBlockStart="600" paddingBlockEnd="600" background="bg-surface" borderRadius="2xl">
             <div style={{ padding: '5px 0px 11px 2px' }}>
               <Text variant="headingMd" as="h2" fontWeight="bold">
@@ -379,47 +553,47 @@ export default function Dashboard() {
             </div>
             <InlineGrid columns={3} gap="400" style={{ width: '100%' }}>
               <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
-                <Box display="flex" alignItems="center">
-                  <Icon source={EmailIcon} color="interactive" />
-                  <Box marginInlineStart="200">
-                    <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                <Box marginInlineStart="200">
+                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Icon source={EmailIcon} color="interactive" />
                       Get email support
-                    </Link>
-                    <Text color="subdued" fontSize="bodySm">
-                      Email us and we'll get back to you as soon as possible.
-                    </Text>
-                  </Box>
+                    </span>
+                  </Link>
+                  <Text color="subdued" fontSize="bodySm">
+                    Email us and we'll get back to you as soon as possible.
+                  </Text>
                 </Box>
               </Card>
               <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
-                <Box display="flex" alignItems="center">
-                  <Icon source={ChatIcon} color="interactive" />
-                  <Box marginInlineStart="200">
-                    <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                <Box marginInlineStart="200">
+                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Icon source={ChatIcon} color="interactive" />
                       Start live chat
-                    </Link>
-                    <Text color="subdued" fontSize="bodySm">
-                      Talk to us directly via live chat to get help with your question.
-                    </Text>
-                  </Box>
+                    </span>
+                  </Link>
+                  <Text color="subdued" fontSize="bodySm">
+                    Talk to us directly via live chat to get help with your question.
+                  </Text>
                 </Box>
               </Card>
               <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
-                <Box display="flex" alignItems="center">
-                  <Icon source={NoteIcon} color="interactive" />
-                  <Box marginInlineStart="200">
-                    <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                <Box marginInlineStart="200">
+                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Icon source={NoteIcon} color="interactive" />
                       Help docs
-                    </Link>
-                    <Text color="subdued" fontSize="bodySm">
-                      Find a solution for your problem with documents and tutorials.
-                    </Text>
-                  </Box>
+                    </span>
+                  </Link>
+                  <Text color="subdued" fontSize="bodySm">
+                    Find a solution for your problem with documents and tutorials.
+                  </Text>
                 </Box>
               </Card>
             </InlineGrid>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ marginTop: 24 }}>
+            <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+              <Box display="flex" paddingBlockStart="400">
                 {faqs.map((faq, idx) => (
                   <div
                     key={idx}
@@ -490,12 +664,10 @@ export default function Dashboard() {
                     </Collapsible>
                   </div>
                 ))}
-              </div>
-            </div>
+              </Box>
+            </Box>
           </Card>
-
-        </div>
-
+        </Box>
         <Footer />
       </Page>
     </Box>
@@ -542,15 +714,20 @@ const Placeholder = ({ height = 'auto', width = 'auto', children }) => {
 
 function LanguageDropdown({ selectedLanguage, setSelectedLanguage }) {
   const [active, setActive] = useState(false);
-
   const toggleActive = useCallback(() => setActive((active) => !active), []);
+  const selected = LANGUAGE_OPTIONS.find(l => l.code === selectedLanguage) || LANGUAGE_OPTIONS[0];
 
   const activator = (
     <Button onClick={toggleActive} disclosure>
-      {selectedLanguage === 'en' ? '🇺🇸 English' :
-        selectedLanguage === 'de' ? '🇩🇪 German' :
-          selectedLanguage === 'fr' ? '🇫🇷 French' :
-            selectedLanguage === 'es' ? '🇪🇸 Spanish' : 'Select language'}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontWeight: 700 }}>
+        <CountryFlag
+          countryCode={selected.country}
+          svg
+          style={{ width: 22, height: 16, borderRadius: 3, marginRight: 10, boxShadow: '0 0 1px #ccc' }}
+          aria-label={selected.label}
+        />
+        {selected.label}
+      </span>
     </Button>
   );
 
@@ -561,47 +738,30 @@ function LanguageDropdown({ selectedLanguage, setSelectedLanguage }) {
       autofocusTarget="first-node"
       onClose={toggleActive}
     >
-      <ActionList
-        actionRole="menuitem"
-        items={[
-          {
-            active: selectedLanguage === 'en',
-            content: '🇺🇸 English',
-            suffix: selectedLanguage === 'en' ? <Icon source={CheckSmallIcon} /> : undefined,
+      <div style={{ maxHeight: 320, overflowY: 'auto', minWidth: 200 }}>
+        <ActionList
+          actionRole="menuitem"
+          items={LANGUAGE_OPTIONS.map(lang => ({
+            active: selectedLanguage === lang.code,
+            content: (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontWeight: selectedLanguage === lang.code ? 700 : 400 }}>
+                <CountryFlag
+                  countryCode={lang.country}
+                  svg
+                  style={{ width: 22, height: 16, borderRadius: 3, marginRight: 10, boxShadow: '0 0 1px #ccc' }}
+                  aria-label={lang.label}
+                />
+                {lang.label}
+              </span>
+            ),
+            suffix: selectedLanguage === lang.code ? <Icon source={CheckSmallIcon} /> : undefined,
             onAction: () => {
-              setSelectedLanguage('en');
+              setSelectedLanguage(lang.code);
               setActive(false);
             }
-          },
-          {
-            active: selectedLanguage === 'de',
-            content: '🇩🇪 German',
-            suffix: selectedLanguage === 'de' ? <Icon source={CheckSmallIcon} /> : undefined,
-            onAction: () => {
-              setSelectedLanguage('de');
-              setActive(false);
-            }
-          },
-          {
-            active: selectedLanguage === 'fr',
-            content: '🇫🇷 French',
-            suffix: selectedLanguage === 'fr' ? <Icon source={CheckSmallIcon} /> : undefined,
-            onAction: () => {
-              setSelectedLanguage('fr');
-              setActive(false);
-            }
-          },
-          {
-            active: selectedLanguage === 'es',
-            content: '🇪🇸 Spanish',
-            suffix: selectedLanguage === 'es' ? <Icon source={CheckSmallIcon} /> : undefined,
-            onAction: () => {
-              setSelectedLanguage('es');
-              setActive(false);
-            }
-          }
-        ]}
-      />
+          }))}
+        />
+      </div>
     </Popover>
   );
 }

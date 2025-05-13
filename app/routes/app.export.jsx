@@ -3,25 +3,16 @@ import {
   Page,
   Text,
   Button,
-  Card,
   Select,
   Link,
   Badge,
   BlockStack,
   InlineStack,
   Box,
-  Layout,
-  Checkbox,
-  DataTable,
-  TextField,
-  Tabs,
   Modal,
   Spinner,
   Thumbnail,
-  Icon,
-  ActionMenu,
   Pagination,
-  Popover,
   IndexTable,
   LegacyCard,
   useIndexResourceState,
@@ -31,10 +22,21 @@ import {
   ChoiceList,
   Toast,
   Frame,
+  Card,
+  SkeletonPage,
+  SkeletonBodyText,
+  SkeletonDisplayText,
+  SkeletonThumbnail,
+  InlineGrid,
+  Popover,
+  ActionList,
 } from '@shopify/polaris';
 import '../styles/globals.css';
 import Footer from '../components/Footer';
 import { useNavigate } from 'react-router-dom';
+import shopifyIcon from '../assets/source-icons/shopify.png';
+import wooIcon from '../assets/source-icons/woo.png';
+import csvIcon from '../assets/source-icons/csv.png';
 
 // Placeholder SVG icon for download
 const DownloadIcon = () => (
@@ -44,10 +46,16 @@ const DownloadIcon = () => (
   </svg>
 );
 
+const formatIcons = {
+  shopify: shopifyIcon,
+  woocommerce: wooIcon,
+  customcsv: csvIcon,
+};
+
 const formatOptions = [
-  { label: 'CSV', value: 'csv' },
-  { label: 'Excel (XLSX)', value: 'xlsx' },
-  { label: 'JSON', value: 'json' },
+  { label: 'Shopify CSV', value: 'shopify', icon: formatIcons.shopify },
+  { label: 'Custom CSV', value: 'customcsv', icon: formatIcons.customcsv },
+  { label: 'WooCommerce CSV', value: 'woocommerce', icon: formatIcons.woocommerce },
 ];
 
 const tabs = [
@@ -56,12 +64,6 @@ const tabs = [
   { id: 'draft', content: 'Draft' },
   { id: 'archived', content: 'Archived' },
   
-];
-
-const exportFormats = [
-  { label: 'Custom CSV', value: 'customcsv' },
-  { label: 'Shopify CSV', value: 'shopify' },
-  { label: 'WooCommerce CSV', value: 'woocommerce' },
 ];
 
 const PAGE_SIZE = 50;
@@ -81,6 +83,140 @@ function statusBadgeColor(status) {
 function StatusBadge({ status }) {
   const { status: badgeStatus, tone } = statusBadgeColor(status);
   return <Badge status={badgeStatus} tone={tone}>{status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : 'Unknown'}</Badge>;
+}
+
+function ExportSkeleton() {
+  return (
+    <SkeletonPage>
+      {/* Header Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="large" />
+            <SkeletonBodyText lines={2} />
+          </div>
+        </Card>
+      </Box>
+
+      {/* Export Options Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="medium" />
+            <Box paddingBlockStart="400">
+              <InlineGrid gap="400" columns={3}>
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <div style={{ padding: '20px', textAlign: 'center' }}>
+                      <SkeletonThumbnail size="large" />
+                      <Box paddingBlockStart="200">
+                        <SkeletonDisplayText size="small" />
+                        <SkeletonBodyText lines={2} />
+                      </Box>
+                    </div>
+                  </Card>
+                ))}
+              </InlineGrid>
+            </Box>
+          </div>
+        </Card>
+      </Box>
+
+      {/* Export Settings Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="medium" />
+            <Box paddingBlockStart="400">
+              <BlockStack gap="200">
+                {[1, 2, 3, 4].map((i) => (
+                  <InlineStack key={i} gap="200" align="start">
+                    <SkeletonThumbnail size="small" />
+                    <div style={{ flex: 1 }}>
+                      <SkeletonBodyText lines={1} />
+                    </div>
+                  </InlineStack>
+                ))}
+              </BlockStack>
+            </Box>
+          </div>
+        </Card>
+      </Box>
+
+      {/* Recent Exports Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="medium" />
+            <Box paddingBlockStart="400">
+              <BlockStack gap="200">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <div style={{ padding: '20px' }}>
+                      <InlineStack gap="400" align="space-between">
+                        <div style={{ flex: 1 }}>
+                          <SkeletonBodyText lines={2} />
+                        </div>
+                        <SkeletonThumbnail size="small" />
+                      </InlineStack>
+                    </div>
+                  </Card>
+                ))}
+              </BlockStack>
+            </Box>
+          </div>
+        </Card>
+      </Box>
+    </SkeletonPage>
+  );
+}
+
+function FormatSelect({ value, onChange, options, active, onToggle, onClose }) {
+  return (
+    <Box>
+      <Popover
+        active={active}
+        activator={
+          <Button disclosure onClick={onToggle}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontWeight: 700 }}>
+              {options.find(opt => opt.value === value)?.icon && (
+                <img
+                  src={options.find(opt => opt.value === value).icon}
+                  alt={options.find(opt => opt.value === value).label}
+                  style={{ width: 24, height: 24, borderRadius: 6, objectFit: 'contain', marginRight: 8, background: '#fff' }}
+                />
+              )}
+              {options.find(opt => opt.value === value)?.label}
+            </span>
+          </Button>
+        }
+        onClose={onClose}
+      >
+        <ActionList
+          actionRole="menuitem"
+          items={options.map(opt => ({
+            content: (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                {opt.icon && (
+                  <img
+                    src={opt.icon}
+                    alt={opt.label}
+                    style={{ width: 24, height: 24, borderRadius: 6, objectFit: 'contain', marginRight: 8, background: '#fff' }}
+                  />
+                )}
+                {opt.label}
+              </span>
+            ),
+            active: value === opt.value,
+            onAction: () => {
+              onChange(opt.value);
+              onClose();
+            },
+          }))}
+        />
+      </Popover>
+    </Box>
+  );
 }
 
 export default function ExportPage() {
@@ -115,6 +251,7 @@ export default function ExportPage() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastError, setToastError] = useState(false);
   const navigate = useNavigate();
+  const [formatPopoverActive, setFormatPopoverActive] = useState(false);
 
   const sortOptions = [
     { label: 'Product title', value: 'title', directionLabel: 'A-Z' },
@@ -351,7 +488,11 @@ export default function ExportPage() {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productIds: selectedResources }),
+        body: JSON.stringify({ 
+          productIds: selectedResources,
+          format: exportFormat,
+          type: exportType
+        }),
         credentials: 'include',
       });
 
@@ -377,7 +518,7 @@ export default function ExportPage() {
       }
 
       // Handle successful response (file download)
-      let filename = `products-${exportFormat}.csv`;
+      let filename = `products-${exportFormat}-${new Date().toISOString().split('T')[0]}.csv`;
       const disposition = response.headers.get('Content-Disposition');
       if (disposition && disposition.includes('filename=')) {
         filename = disposition.split('filename=')[1].replace(/"/g, '');
@@ -419,41 +560,6 @@ export default function ExportPage() {
   console.log('Products:', products);
   console.log('Filtered Products:', filteredProducts);
   console.log('Selected Tab:', selectedTab);
-
-  // Export format options for CustomDropdown
-  const exportFormatOptions = [
-    { value: 'customcsv', label: 'Custom CSV' },
-    { value: 'shopify', label: 'Shopify CSV' },
-    { value: 'woocommerce', label: 'WooCommerce CSV' },
-  ];
-
-  // Add error display to the UI
-  const renderError = () => {
-    if (!authError) return null;
-    return (
-      <div style={{ 
-        padding: '16px', 
-        margin: '16px', 
-        backgroundColor: '#FBE9E7', 
-        border: '1px solid #FFCDD2', 
-        borderRadius: '4px',
-        color: '#D32F2F',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <span>{authError}</span>
-        <Button onClick={handleRefresh} size="slim">
-          Refresh
-        </Button>
-      </div>
-    );
-  };
-
-  // Add debug logging for selected products
-  useEffect(() => {
-    console.log('Selected Products:', selectedResources);
-  }, [selectedResources]);
 
   // Sorting logic
   const getSortField = (sortValue) => sortValue.split(' ')[0];
@@ -525,6 +631,11 @@ export default function ExportPage() {
   );
 
   const togglePopoverActive = useCallback(() => setPopoverActive((active) => !active), []);
+  const toggleFormatPopover = useCallback(() => setFormatPopoverActive(active => !active), []);
+
+  if (isLoading) {
+    return <ExportSkeleton />;
+  }
 
   return (
     <Frame>
@@ -534,16 +645,16 @@ export default function ExportPage() {
           <div style={{ marginBottom: 10 }}>
             <InlineStack align="end" gap="100" blockAlign="center" style={{ paddingBottom: 10 }}>
               <Button onClick={() => handleOpenExportModal('all')} loading={isExporting} disabled={isExporting}>
-                        Export All Product
+                Export All Product
               </Button>
               <Button
                 variant="primary"
-                        onClick={() => handleOpenExportModal('selected')}
+                onClick={() => handleOpenExportModal('selected')}
                 className="polarisBlackButton"
                 loading={isExporting}
                 disabled={isExporting}
-                    >
-                        Export Selected Product
+              >
+                Export Selected Product
               </Button>
             </InlineStack>
           </div>
@@ -599,11 +710,11 @@ export default function ExportPage() {
               }}
             />
             {/* Show loading spinner or table */}
-              {isLoading ? (
+            {isLoading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-                  <Spinner accessibilityLabel="Loading products" size="large" />
-                </div>
-              ) : (
+                <Spinner accessibilityLabel="Loading products" size="large" />
+              </div>
+            ) : (
               <IndexTable
                 condensed={breakpoints.smDown}
                 resourceName={resourceName}
@@ -658,10 +769,7 @@ export default function ExportPage() {
           title="Export Products by CSV"
           primaryAction={{
             content: 'Export Products',
-            onAction: () => {
-              console.log('Export button clicked!');
-              handleExport();
-            },
+            onAction: handleExport,
             primary: true,
             destructive: false,
             loading: isExporting,
@@ -691,15 +799,7 @@ export default function ExportPage() {
               </div>
               <div>
                 <Text as="h3" variant="headingSm">Export as</Text>
-                <Select
-                  options={[
-                    { label: 'Custom CSV', value: 'customcsv' },
-                    { label: 'Shopify CSV', value: 'shopify' },
-                    { label: 'WooCommerce CSV', value: 'woocommerce' },
-                  ]}
-                  value={exportFormat}
-                  onChange={setExportFormat}
-                />
+                <FormatSelect value={exportFormat} onChange={setExportFormat} options={formatOptions} active={formatPopoverActive} onToggle={toggleFormatPopover} onClose={() => setFormatPopoverActive(false)} />
               </div>
               <Text as="p" variant="bodySm">
                 Learn more about{' '}

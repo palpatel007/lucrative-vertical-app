@@ -136,7 +136,15 @@ export const action = async ({ request }) => {
         };
       });
       console.log('[Export][Shopify] All products fetched:', products.length);
-      // For 'all' case, fetch all products and then slice to exportLimit
+      // For 'all' case, check if export limit is exceeded and return error if so
+      if (type === 'all' && products.length > exportLimit) {
+        return json({
+          success: false,
+          error: `Export limit reached. Your plan allows exporting up to ${exportLimit} products at a time.`,
+          upgradeUrl: `/app/billing?shop=${shopDoc.shop}`
+        }, { status: 403 });
+      }
+      // For 'all' case, fetch all products and then slice to exportLimit (legacy, should not be needed now)
       if (products.length > exportLimit) {
         console.log('[Export][PlanLimits] Slicing products to exportLimit:', exportLimit);
         products = products.slice(0, exportLimit);
@@ -202,6 +210,149 @@ export const action = async ({ request }) => {
         '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''
       ];
     };
+  } else if (format === 'shopify') {
+    headersArr = [
+      'Handle',
+      'Title',
+      'Body (HTML)',
+      'Vendor',
+      'Product Category',
+      'Type',
+      'Tags',
+      'Published',
+      'Option1 Name',
+      'Option1 Value',
+      'Option2 Name',
+      'Option2 Value',
+      'Option3 Name',
+      'Option3 Value',
+      'Variant SKU',
+      'Variant Grams',
+      'Variant Inventory Tracker',
+      'Variant Inventory Qty',
+      'Variant Inventory Policy',
+      'Variant Fulfillment Service',
+      'Variant Price',
+      'Variant Compare At Price',
+      'Variant Requires Shipping',
+      'Variant Taxable',
+      'Variant Barcode',
+      'Image Src',
+      'Image Position',
+      'Image Alt Text',
+      'Gift Card',
+      'Google Shopping / Google Product Category',
+      'SEO Title',
+      'SEO Description',
+      'Google Shopping / Gender',
+      'Google Shopping / Age Group',
+      'Google Shopping / Condition',
+      'Google Shopping / Custom Product',
+      'Google Shopping / Custom Label 0',
+      'Google Shopping / Custom Label 1',
+      'Google Shopping / Custom Label 2',
+      'Google Shopping / Custom Label 3',
+      'Google Shopping / Custom Label 4',
+      'Variant Image',
+      'Variant Weight Unit',
+      'Variant Tax Code',
+      'Cost per item',
+      'Status'
+    ];
+
+    mapProductFn = (shopifyProduct) => {
+      const variant = shopifyProduct.variants?.[0] || {};
+      const image = shopifyProduct.images?.[0] || {};
+      
+      return [
+        shopifyProduct.handle || '',
+        shopifyProduct.title || '',
+        shopifyProduct.body_html || '',
+        shopifyProduct.vendor || '',
+        '', // Product Category
+        shopifyProduct.productType || '',
+        Array.isArray(shopifyProduct.tags) ? shopifyProduct.tags.join(',') : (shopifyProduct.tags || ''),
+        shopifyProduct.status === 'active' ? 'TRUE' : 'FALSE',
+        'Title', // Option1 Name
+        'Default Title', // Option1 Value
+        '', // Option2 Name
+        '', // Option2 Value
+        '', // Option3 Name
+        '', // Option3 Value
+        variant.sku || '',
+        variant.grams || '',
+        variant.inventory_management || '',
+        variant.inventory_quantity || '',
+        variant.inventory_policy || '',
+        variant.fulfillment_service || '',
+        variant.price || '',
+        variant.compare_at_price || '',
+        variant.requires_shipping ? 'TRUE' : 'FALSE',
+        variant.taxable ? 'TRUE' : 'FALSE',
+        variant.barcode || '',
+        image.src || '',
+        image.position || '',
+        image.alt || '',
+        '', // Gift Card
+        '', // Google Shopping / Google Product Category
+        shopifyProduct.metafields?.seo_title || '',
+        shopifyProduct.metafields?.seo_description || '',
+        '', // Google Shopping / Gender
+        '', // Google Shopping / Age Group
+        '', // Google Shopping / Condition
+        '', // Google Shopping / Custom Product
+        '', // Google Shopping / Custom Label 0
+        '', // Google Shopping / Custom Label 1
+        '', // Google Shopping / Custom Label 2
+        '', // Google Shopping / Custom Label 3
+        '', // Google Shopping / Custom Label 4
+        '', // Variant Image
+        variant.weight_unit || '',
+        variant.tax_code || '',
+        variant.cost || '',
+        shopifyProduct.status || 'active'
+      ];
+    };
+  } else if (format === 'customcsv') {
+    headersArr = [
+      'ID',
+      'Title',
+      'Description',
+      'SKU',
+      'Price',
+      'Compare At Price',
+      'Inventory',
+      'Status',
+      'Type',
+      'Vendor',
+      'Tags',
+      'Images',
+      'Handle'
+    ];
+
+    mapProductFn = (shopifyProduct) => {
+      const variant = shopifyProduct.variants?.[0] || {};
+      const images = (shopifyProduct.images || [])
+        .map(img => img?.src || img?.url || '')
+        .filter(Boolean)
+        .join(',');
+      
+      return [
+        shopifyProduct.id?.split('/')?.pop() || '',
+        shopifyProduct.title || '',
+        shopifyProduct.body_html || '',
+        variant.sku || '',
+        variant.price || '',
+        variant.compare_at_price || '',
+        variant.inventory_quantity || '',
+        shopifyProduct.status || '',
+        shopifyProduct.productType || '',
+        shopifyProduct.vendor || '',
+        Array.isArray(shopifyProduct.tags) ? shopifyProduct.tags.join(',') : (shopifyProduct.tags || ''),
+        images,
+        shopifyProduct.handle || ''
+      ];
+    };
   } else {
     return json({ success: false, error: 'Unsupported format' }, { status: 400 });
   }
@@ -253,6 +404,22 @@ export const action = async ({ request }) => {
   // Log before sending the file
   console.log('[Export][Response] Sending CSV file with', products.length, 'products');
 
+  // Log ImportExportEvent for successful export
+  try {
+    if (products.length > 0) {
+      const ImportExportEvent = (await import('../models/ImportExportEvent.js')).default;
+      await ImportExportEvent.create({
+        shopId: shopDoc._id,
+        type: 'export',
+        count: products.length,
+        date: new Date(),
+        platform: format
+      });
+    }
+  } catch (eventErr) {
+    console.error('[Export] Failed to log ImportExportEvent:', eventErr);
+  }
+
   return new Response(csv, {
     status: 200,
     headers: {
@@ -260,4 +427,65 @@ export const action = async ({ request }) => {
       'Content-Disposition': `attachment; filename=products-${format}.csv`,
     },
   });
+};
+
+export const loader = async ({ request }) => {
+  const url = new URL(request.url);
+  const format = url.searchParams.get('format');
+  const type = url.searchParams.get('type');
+
+  // Only handle GET for sample CSV
+  if (type === 'sample' && format === 'customcsv') {
+    // Generate sample data (reuse your sample logic)
+    const headersArr = [
+      'ID','Title','Description','SKU','Price','Compare At Price','Inventory','Status','Type','Vendor','Tags','Images','Handle'
+    ];
+    const sampleProduct = {
+      id: '123456',
+      title: 'Sample Product',
+      description: 'This is a sample product description.',
+      sku: 'SAMPLE-SKU-001',
+      price: '19.99',
+      compare_at_price: '24.99',
+      inventory: 100,
+      status: 'active',
+      type: 'Sample Type',
+      vendor: 'Sample Vendor',
+      tags: 'sample,test',
+      images: 'https://cdn.shopify.com/s/files/1/0000/0000/products/sample.jpg',
+      handle: 'sample-product'
+    };
+    const row = [
+      sampleProduct.id,
+      sampleProduct.title,
+      sampleProduct.description,
+      sampleProduct.sku,
+      sampleProduct.price,
+      sampleProduct.compare_at_price,
+      sampleProduct.inventory,
+      sampleProduct.status,
+      sampleProduct.type,
+      sampleProduct.vendor,
+      sampleProduct.tags,
+      sampleProduct.images,
+      sampleProduct.handle
+    ];
+    const csv = [headersArr, row].map(r => r.map(cell => {
+      if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"') || cell.includes('\n'))) {
+        return '"' + cell.replace(/"/g, '""') + '"';
+      }
+      return cell;
+    }).join(',')).join('\r\n');
+
+    return new Response(csv, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename=sample-custom-products.csv',
+      },
+    });
+  }
+
+  // If not a sample GET, return 404
+  return json({ error: 'Not found' }, { status: 404 });
 }; 

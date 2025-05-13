@@ -34,6 +34,7 @@ export const PLAN_LIMITS = {
 
 import { Subscription } from '../models/subscription.js';
 import StoreStats from '../models/StoreStats.js';
+import ImportExportEvent from '../models/ImportExportEvent.js';
 
 // Helper function to check if a shop has exceeded their import/export limits
 export async function checkPlanLimits(shopId, type, count) {
@@ -44,9 +45,15 @@ export async function checkPlanLimits(shopId, type, count) {
       throw new Error('No subscription found');
     }
 
-    // Get current stats
-    const stats = await StoreStats.findOne({ shopId });
-    const currentCount = stats ? (type === 'import' ? stats.importCount : stats.exportCount) : 0;
+    // Get current stats from ImportExportEvent
+    let currentCount = 0;
+    if (type === 'import' || type === 'export') {
+      const agg = await ImportExportEvent.aggregate([
+        { $match: { shopId: typeof shopId === 'string' ? new (require('mongoose').Types.ObjectId)(shopId) : shopId, type } },
+        { $group: { _id: null, total: { $sum: '$count' } } }
+      ]);
+      currentCount = agg[0]?.total || 0;
+    }
 
     // Get plan limits
     const planLimits = PLAN_LIMITS[subscription.plan];

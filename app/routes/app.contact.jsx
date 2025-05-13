@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import '../styles/globals.css';
 import Footer from '../components/Footer';
 import tutorialIcon from '../assets/tutorialIcon.png';
 import { PlayIcon } from '@shopify/polaris-icons';
 import { EmailIcon, ChatIcon, NoteIcon } from '@shopify/polaris-icons';
+import { authenticate } from '../shopify.server.js';
+import { useActionData, useSubmit, useNavigate, useLoaderData } from '@remix-run/react';
+import { json } from '@remix-run/node';
 
 import {
   Card,
@@ -21,7 +24,14 @@ import {
   TextField,
   Select,
   InlineStack,
-  Divider
+  Divider,
+  Toast,
+  Frame,
+  SkeletonPage,
+  SkeletonBodyText,
+  SkeletonDisplayText,
+  SkeletonThumbnail,
+  FormLayout,
 } from '@shopify/polaris';
 
 const tutorialData = [
@@ -66,7 +76,127 @@ const reasonOptions = [
   { label: 'Feature Request', value: 'feature' },
 ];
 
+export const loader = async ({ request }) => {
+  await authenticate.admin(request);
+  return json({ authenticated: true });
+};
+
+function ContactSkeleton() {
+  return (
+    <SkeletonPage>
+      {/* Header Skeleton */}
+      <Box paddingBlockEnd="400">
+        <Card>
+          <div style={{ padding: '20px' }}>
+            <SkeletonDisplayText size="large" />
+            <SkeletonBodyText lines={2} />
+          </div>
+        </Card>
+      </Box>
+
+      {/* Contact Form Skeleton */}
+      <Box paddingBlockEnd="400" display="flex" justifyContent="center">
+        <Card>
+          <Box padding="600" minWidth="700px" maxWidth="900px">
+            <BlockStack gap="400">
+              <SkeletonDisplayText size="medium" />
+              <SkeletonBodyText lines={1} />
+              <FormLayout>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i}>
+                    <SkeletonBodyText lines={1} />
+                    <Box paddingBlockStart="200">
+                      <SkeletonThumbnail size="medium" />
+                    </Box>
+                  </div>
+                ))}
+                {/* Submit button skeleton */}
+                <Box paddingBlockStart="400">
+                  <SkeletonThumbnail size="large" />
+                </Box>
+              </FormLayout>
+            </BlockStack>
+          </Box>
+        </Card>
+      </Box>
+
+      {/* Tutorials Skeleton */}
+      <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+        <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
+          <BlockStack gap="200">
+            <SkeletonDisplayText size="medium" />
+            <SkeletonBodyText lines={1} />
+            <InlineGrid columns={{ xs: 1, sm: 2 }} gap="400">
+              {[1, 2].map((i) => (
+                <Card key={i} padding="400">
+                  <Box background="bg-surface">
+                    <Box display="flex" gap="100">
+                      <Box
+                        width="60px"
+                        height="60px"
+                        borderRadius="full"
+                        background="#8B5CF6"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        marginInlineEnd="200"
+                      >
+                        <SkeletonThumbnail size="large" />
+                      </Box>
+                      <BlockStack gap="100">
+                        <SkeletonDisplayText size="small" />
+                        <SkeletonBodyText lines={1} />
+                        <SkeletonBodyText lines={1} />
+                      </BlockStack>
+                    </Box>
+                  </Box>
+                </Card>
+              ))}
+            </InlineGrid>
+            <Box display="flex" alignItems="center" justifyContent="space-between" marginBlockStart="4">
+              <SkeletonBodyText lines={1} />
+            </Box>
+          </BlockStack>
+        </Card>
+      </Box>
+
+      {/* FAQ/Help Skeleton */}
+      <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+        <Card paddingBlockStart="600" paddingBlockEnd="600" background="bg-surface" borderRadius="2xl">
+          <Box padding="20px 0px 11px 2px">
+            <SkeletonDisplayText size="medium" />
+          </Box>
+          <InlineGrid columns={3} gap="400" style={{ width: '100%' }}>
+            {[1, 2, 3].map((i) => (
+              <Card key={i} padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
+                <Box marginInlineStart="200">
+                  <SkeletonBodyText lines={1} />
+                  <SkeletonBodyText lines={1} />
+                </Box>
+              </Card>
+            ))}
+          </InlineGrid>
+          <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+            <Box display="flex" paddingBlockStart="400">
+              {[1, 2, 3].map((i) => (
+                <Box key={i} marginBlockEnd="200">
+                  <SkeletonBodyText lines={1} />
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Card>
+      </Box>
+    </SkeletonPage>
+  );
+}
+
 export default function Contact() {
+  const { authenticated } = useLoaderData();
+  const actionData = useActionData();
+  const submit = useSubmit();
+  const navigate = useNavigate();
+
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -79,6 +209,11 @@ export default function Contact() {
   const [selectedFaq, setSelectedFaq] = useState(null);
   const [submitResult, setSubmitResult] = useState(null);
   const [tutorialPage, setTutorialPage] = useState(1);
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastError, setToastError] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const TUTORIALS_PER_PAGE = 2;
   const totalPages = Math.ceil(tutorialData.length / TUTORIALS_PER_PAGE);
   const pagedTutorials = tutorialData.slice(
@@ -86,299 +221,401 @@ export default function Contact() {
     tutorialPage * TUTORIALS_PER_PAGE
   );
 
-  const reasons = [
-    { label: 'Other', value: 'other' },
-    { label: 'Billing', value: 'billing' },
-    { label: 'Technical', value: 'technical' },
-    { label: 'Feature Request', value: 'feature' },
-  ];
-
-  const handleChange = (field) => (value) => setForm((f) => ({ ...f, [field]: value }));
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitResult(null);
-    // Simulate API call
-    setTimeout(() => {
-      setSubmitResult({ success: true, message: 'Message sent!' });
-      setForm({
-        name: '',
-        email: '',
-        code: '',
-        password: '',
-        reason: 'other',
-        page: '',
-        message: '',
-      });
-    }, 1000);
+  const handleChange = (field) => (value) => {
+    setForm((f) => ({ ...f, [field]: value }));
   };
 
+  const showToast = useCallback((message, isError = false) => {
+    setToastMessage(message);
+    setToastError(isError);
+    setToastActive(true);
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    setToastActive(false);
+  }, []);
+
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!form.name || !form.email || !form.code || !form.message) {
+      showToast('Please fill in all required fields', true);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setToastActive(false);
+
+    try {
+      const formData = new FormData();
+      Object.keys(form).forEach(key => {
+        formData.append(key, form[key]);
+      });
+
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setForm({
+          name: '',
+          email: '',
+          code: '',
+          password: '',
+          reason: 'other',
+          page: '',
+          message: ''
+        });
+        showToast('Your message has been sent successfully!', false);
+      } else {
+        showToast(data.error || 'Failed to send message', true);
+      }
+    } catch (error) {
+      showToast('Failed to send message. Please try again.', true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <ContactSkeleton />;
+  }
+
   return (
-    <Page>
-      <Box paddingBlockStart="400" paddingBlockEnd="400" display="flex" justifyContent="center">
-        <Card>
-          <Box padding="600" minWidth="700px" maxWidth="900px">
-            <BlockStack gap="400">
-              <Text variant="headingLg" as="h2" fontWeight="bold">
-                Contact Us
-              </Text>
-              <Text variant="headingMd" fontWeight="semibold">
-                Store Information
-              </Text>
-              <InlineStack gap="200">
-                <Box width="49%">
-                  <TextField
-                    label="Your name"
-                    value={form.name}
-                    onChange={handleChange('name')}
-                    autoComplete="name"
-                  />
+    <Frame>
+      <Page>
+        {toastActive && (
+          <Toast
+            content={toastMessage}
+            error={toastError}
+            onDismiss={dismissToast}
+            duration={4000}
+          />
+        )}
+
+        <Box paddingBlockStart="400" paddingBlockEnd="400" display="flex" justifyContent="center">
+          <Card>
+            <Box padding="600" minWidth="700px" maxWidth="900px">
+              <BlockStack gap="400">
+                <Text variant="headingLg" as="h2" fontWeight="bold">
+                  Contact Us
+                </Text>
+                <Text variant="headingMd" fontWeight="semibold">
+                  Store Information
+                </Text>
+
+                {submitResult && (
+                  <div style={{
+                    padding: '12px',
+                    borderRadius: '4px',
+                    backgroundColor: submitResult.success ? '#E3F1DF' : '#FBE9E7',
+                    color: submitResult.success ? '#108043' : '#BF0711',
+                    marginBottom: '16px'
+                  }}>
+                    {submitResult.message}
+                  </div>
+                )}
+
+                <InlineStack gap="200">
+                  <Box width="49%">
+                    <TextField
+                      label="Your name"
+                      value={form.name}
+                      onChange={handleChange('name')}
+                      autoComplete="name"
+                      disabled={isSubmitting}
+                      required
+                    />
+                  </Box>
+                  <Box width="50%">
+                    <TextField
+                      label="Your email"
+                      value={form.email}
+                      onChange={handleChange('email')}
+                      autoComplete="email"
+                      helpText="We'll use this address if we need to contact you about your account."
+                      disabled={isSubmitting}
+                      required
+                      type="email"
+                    />
+                  </Box>
+                </InlineStack>
+
+                <InlineStack gap="200">
+                  <Box width="49%">
+                    <TextField
+                      label="Collaborator request code"
+                      value={form.code}
+                      onChange={handleChange('code')}
+                      autoComplete="off"
+                      requiredIndicator
+                      disabled={isSubmitting}
+                      required
+                    />
+                    <Text color="subdued" fontSize="bodySm">
+                      To find the 4-digit access code, please follow the steps below:<br />
+                      Navigate to your Shopify store admin &gt; Settings &gt; Users &gt; Security &gt; Store security &gt; Collaborators, and there's your code!
+                    </Text>
+                  </Box>
+                  <Box width="50%">
+                    <TextField
+                      label="Store password"
+                      value={form.password}
+                      onChange={handleChange('password')}
+                      autoComplete="off"
+                      disabled={isSubmitting}
+                      type="password"
+                    />
+                    <Text color="subdued" fontSize="bodySm">
+                      Password to access the website if available
+                    </Text>
+                  </Box>
+                </InlineStack>
+
+                <Divider />
+                <Select
+                  label="Reason for contacting"
+                  options={reasonOptions}
+                  value={form.reason}
+                  onChange={handleChange('reason')}
+                  disabled={isSubmitting}
+                  required
+                />
+                <TextField
+                  label="Page information"
+                  value={form.page}
+                  onChange={handleChange('page')}
+                  helpText="Information about the page you are having problems with such as page title, page url"
+                  disabled={isSubmitting}
+                />
+                <TextField
+                  label="Message"
+                  value={form.message}
+                  onChange={handleChange('message')}
+                  multiline={4}
+                  requiredIndicator
+                  helpText="Please provide detailed information about your inquiry"
+                  disabled={isSubmitting}
+                  required
+                />
+                <Divider />
+                <Box>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                      variant="primary"
+                      loading={isSubmitting}
+                      disabled={isSubmitting}
+                      onClick={handleSubmit}
+                    >
+                      {isSubmitting ? 'Sending...' : 'Send'}
+                    </Button>
+                  </div>
                 </Box>
-                <Box width="50%">
-                  <TextField
-                    label="Your email"
-                    value={form.email}
-                    onChange={handleChange('email')}
-                    autoComplete="email"
-                    helpText="We'll use this address if we need to contact you about your account."
-                  />
-                </Box>
-              </InlineStack>
-              <InlineStack gap="200">
-                <Box width="49%">
-                  <TextField
-                    label="Collaborator request code"
-                    value={form.code}
-                    onChange={handleChange('code')}
-                    autoComplete="off"
-                    requiredIndicator
-                  />
-                  <Text color="subdued" fontSize="bodySm">
-                    To find the 4-digit access code, please follow the steps below:<br />
-                    Navigate to your Shopify store admin &gt; Settings &gt; Users &gt; Security &gt; Store security &gt; Collaborators, and there's your code!
-                  </Text>
-                </Box>
-                <Box width="50%">
-                  <TextField
-                    label="Store password"
-                    value={form.password}
-                    onChange={handleChange('password')}
-                    autoComplete="off"
-                  />
-                  <Text color="subdued" fontSize="bodySm">
-                    Password to access the website if available
-                  </Text>
-                </Box>
-              </InlineStack>
-              <Divider />
-              <Select
-                label="Reason for contacting"
-                options={reasons}
-                value={form.reason}
-                onChange={handleChange('reason')}
-              />
-              <TextField
-                label="Page information"
-                value={form.page}
-                onChange={handleChange('page')}
-                helpText="Information about the page you are having problems with such as page title, page url"
-              />
-              <TextField
-                label="Message"
-                value={form.message}
-                onChange={handleChange('message')}
-                multiline={4}
-                requiredIndicator
-                helpText="Information about the page you are having problems with such as page title, page url"
-              />
-              <Divider />
-              <Box>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button variant="primary" onClick={handleSubmit}>Send</Button>
-                </div>
+              </BlockStack>
+            </Box>
+          </Card>
+        </Box>
+
+        {/* Tutorials */}
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+          <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
+            <BlockStack gap="200">
+              <Text variant="headingMd">Quick tutorials</Text>
+              <Text color="subdued">This is where an optional subheading can go</Text>
+              <InlineGrid columns={{ xs: 1, sm: 2 }} gap="400">
+                {pagedTutorials.map((tut, idx) => (
+                  <Card key={idx} padding="400">
+                    <Box background="bg-surface">
+                      <div style={{ display: 'flex', gap: 5 }}>
+                        {/* Icon on the left */}
+                        <Box
+                          width="60px"
+                          height="60px"
+                          borderRadius="full"
+                          background="#8B5CF6"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          marginInlineEnd="200"
+                        >
+                          <img src={tutorialIcon} alt="Tutorial" style={{ width: 40, height: 40 }} />
+                        </Box>
+                        {/* Content on the right */}
+                        <BlockStack gap="100">
+                          <Text variant="headingSm">{tut.title}</Text>
+                          <Text>{tut.desc}</Text>
+                          <ButtonGroup>
+                            <Button url={tut.video} icon={PlayIcon}>Watch video</Button>
+                            <Link url={tut.instruction} style={{ color: '#3574F2', fontWeight: 500 }}>
+                              Read instruction
+                            </Link>
+                          </ButtonGroup>
+                        </BlockStack>
+                      </div>
+                    </Box>
+                  </Card>
+                ))}
+              </InlineGrid>
+              <Box display="flex" alignItems="center" justifyContent="space-between" marginBlockStart="4">
+                <Pagination
+                  hasPrevious={tutorialPage > 1}
+                  onPrevious={() => setTutorialPage(tutorialPage - 1)}
+                  hasNext={tutorialPage < totalPages}
+                  onNext={() => setTutorialPage(tutorialPage + 1)}
+                  label={`${tutorialPage}/${totalPages}`}
+                />
               </Box>
             </BlockStack>
-          </Box>
-        </Card>
-      </Box>
+          </Card>
+        </Box>
 
-      {/* Tutorials */}
-      <div style={{ marginBottom: 24 }}>
-        <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
-          <BlockStack gap="200">
-            <Text variant="headingMd">Quick tutorials</Text>
-            <Text color="subdued">This is where an optional subheading can go</Text>
-            <InlineGrid columns={{ xs: 1, sm: 2 }} gap="400">
-              {pagedTutorials.map((tut, idx) => (
-                <Card key={idx} padding="400">
-                  <Box background="bg-surface">
-                    <BlockStack gap="100">
-                      <Box
-                        width="48px"
-                        height="48px"
-                        borderRadius="full"
-                        background="#8B5CF6"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        marginInlineEnd="200"
-                      >
-                        <img src={tutorialIcon} alt="Tutorial" style={{ width: 28, height: 28 }} />
-                      </Box>
-                      <Text variant="headingSm">{tut.title}</Text>
-                      <Text>{tut.desc}</Text>
-                      <ButtonGroup>
-                        <Button url={tut.video} icon={PlayIcon}>Watch video</Button>
-                        <Link url={tut.instruction} style={{ color: '#3574F2', fontWeight: 500 }}>
-                          Read instruction
-                        </Link>
-                      </ButtonGroup>
-                    </BlockStack>
-                  </Box>
-                </Card>
-              ))}
-            </InlineGrid>
-            <Box display="flex" alignItems="center" justifyContent="space-between" marginBlockStart="4">
-              <Pagination
-                hasPrevious={tutorialPage > 1}
-                onPrevious={() => setTutorialPage(tutorialPage - 1)}
-                hasNext={tutorialPage < totalPages}
-                onNext={() => setTutorialPage(tutorialPage + 1)}
-                label={`${tutorialPage}/${totalPages}`}
-              />
-            </Box>
-          </BlockStack>
-        </Card>
-      </div>
-
-      {/* Help Section */ /* FAQ Section */}
-      <div style={{ marginBottom: 24 }}>
-        <Card paddingBlockStart="600" paddingBlockEnd="600" background="bg-surface" borderRadius="2xl">
-          <div style={{ padding: '5px 0px 11px 2px' }}>
-            <Text variant="headingMd" as="h2" fontWeight="bold">
-              Need help or Import?
-            </Text>
-          </div>
-          <InlineGrid columns={3} gap="400" style={{ width: '100%' }}>
-            <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
-              <Box display="flex" alignItems="center">
-                <Icon source={EmailIcon} color="interactive" />
+        {/* Help Section */ /* FAQ Section */}
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+          <Card paddingBlockStart="600" paddingBlockEnd="600" background="bg-surface" borderRadius="2xl">
+            <div style={{ padding: '5px 0px 11px 2px' }}>
+              <Text variant="headingMd" as="h2" fontWeight="bold">
+                Need help or Import?
+              </Text>
+            </div>
+            <InlineGrid columns={3} gap="400" style={{ width: '100%' }}>
+              <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
                 <Box marginInlineStart="200">
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
-                    Get email support
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Icon source={EmailIcon} color="interactive" />
+                      Get email support
+                    </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
                     Email us and we'll get back to you as soon as possible.
                   </Text>
                 </Box>
-              </Box>
-            </Card>
-            <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
-              <Box display="flex" alignItems="center">
-                <Icon source={ChatIcon} color="interactive" />
+              </Card>
+              <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
                 <Box marginInlineStart="200">
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
-                    Start live chat
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Icon source={ChatIcon} color="interactive" />
+                      Start live chat
+                    </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
                     Talk to us directly via live chat to get help with your question.
                   </Text>
                 </Box>
-              </Box>
-            </Card>
-            <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
-              <Box display="flex" alignItems="center">
-                <Icon source={NoteIcon} color="interactive" />
+              </Card>
+              <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
                 <Box marginInlineStart="200">
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
-                    Help docs
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Icon source={NoteIcon} color="interactive" />
+                      Help docs
+                    </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
                     Find a solution for your problem with documents and tutorials.
                   </Text>
                 </Box>
-              </Box>
-            </Card>
-          </InlineGrid>
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ marginTop: 24 }}>
-              {faqs.map((faq, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    marginBottom: 12,
-                    background: '#F6F6F7',
-                    borderRadius: 12,
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    overflow: 'hidden',
-                    transition: 'box-shadow 0.2s',
-                    boxShadow: selectedFaq === idx ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
-                  }}
-                >
-                  <button
-                    onClick={() => setSelectedFaq(selectedFaq === idx ? null : idx)}
-                    aria-expanded={selectedFaq === idx}
-                    aria-controls={`faq-${idx}`}
+              </Card>
+            </InlineGrid>
+            <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+              <Box display="flex" paddingBlockStart="400">
+                {faqs.map((faq, idx) => (
+                  <div
+                    key={idx}
                     style={{
-                      width: '100%',
-                      background: 'none',
-                      border: 'none',
-                      outline: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '20px 24px',
-                      fontWeight: 500,
-                      fontSize: 15,
-                      cursor: 'pointer',
-                      color: '#202223',
+                      marginBottom: 12,
+                      background: '#F6F6F7',
                       borderRadius: 12,
-                      transition: 'background 0.2s',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden',
+                      transition: 'box-shadow 0.2s',
+                      boxShadow: selectedFaq === idx ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
                     }}
-                    onMouseOver={e => (e.currentTarget.style.background = '#EFEFEF')}
-                    onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <span style={{ flex: 1, textAlign: 'left' }}>{faq}</span>
-                    <span
+                    <button
+                      onClick={() => setSelectedFaq(selectedFaq === idx ? null : idx)}
+                      aria-expanded={selectedFaq === idx}
+                      aria-controls={`faq-${idx}`}
                       style={{
-                        transform: selectedFaq === idx ? 'rotate(90deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s',
-                        color: '#8C9196',
-                        fontSize: 20,
-                        marginLeft: 8,
-                      }}
-                    >
-                      &#8250;
-                    </span>
-                  </button>
-                  <Collapsible
-                    open={selectedFaq === idx}
-                    id={`faq-${idx}`}
-                    transition={{ duration: '400ms', timingFunction: 'ease-in-out' }}
-                  >
-                    <div
-                      style={{
-                        padding: '0 24px 20px 24px',
-                        color: '#6D7175',
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        outline: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '20px 24px',
+                        fontWeight: 500,
                         fontSize: 15,
-                        background: '#F6F6F7',
-                        borderRadius: '0 0 12px 12px',
-                        marginTop: 14,
+                        cursor: 'pointer',
+                        color: '#202223',
+                        borderRadius: 12,
+                        transition: 'background 0.2s',
                       }}
+                      onMouseOver={e => (e.currentTarget.style.background = '#EFEFEF')}
+                      onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
                     >
-                      Here is the answer to your question.
-                    </div>
-                  </Collapsible>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-      </div>
+                      <span style={{ flex: 1, textAlign: 'left' }}>{faq}</span>
+                      <span
+                        style={{
+                          transform: selectedFaq === idx ? 'rotate(90deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.2s',
+                          color: '#8C9196',
+                          fontSize: 20,
+                          marginLeft: 8,
+                        }}
+                      >
+                        &#8250;
+                      </span>
+                    </button>
+                    <Collapsible
+                      open={selectedFaq === idx}
+                      id={`faq-${idx}`}
+                      transition={{ duration: '400ms', timingFunction: 'ease-in-out' }}
+                    >
+                      <div
+                        style={{
+                          padding: '0 24px 20px 24px',
+                          color: '#6D7175',
+                          fontSize: 15,
+                          background: '#F6F6F7',
+                          borderRadius: '0 0 12px 12px',
+                          marginTop: 14,
+                        }}
+                      >
+                        Here is the answer to your question.
+                      </div>
+                    </Collapsible>
+                  </div>
+                ))}
+              </Box>
+            </Box>
+          </Card>
+        </Box>
 
-      {/* Footer */}
-      <Footer />
-    </Page>
+        {/* Footer */}
+        <Footer />
+      </Page>
+    </Frame>
   );
 } 

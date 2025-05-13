@@ -1,7 +1,7 @@
-import { authenticate } from "../shopify.server";
-import { getSubscription, PLANS } from "../routes/api.billing.js";
 import { Subscription } from '../models/subscription.js';
 import mongoose from 'mongoose';
+import { PLANS } from '../config/plans.js';
+import { Shop } from '../models/Shop.js';
 
 export async function checkSubscriptionQuota(shop) {
   if (!shop) {
@@ -9,10 +9,28 @@ export async function checkSubscriptionQuota(shop) {
   }
 
   try {
-    const subscription = await Subscription.findOne({ shopId: shop });
+    console.log('[Subscription] Checking quota for shop:', shop);
+    
+    // First find the shop to get its ID
+    const shopDoc = await Shop.findOne({ shop });
+    if (!shopDoc) {
+      console.log('[Subscription] Shop not found:', shop);
+      return { error: 'Shop not found', status: 404 };
+    }
+
+    // Now find subscription using shop's ID
+    const subscription = await Subscription.findOne({ shopId: shopDoc._id });
+    console.log('[Subscription] Found subscription:', {
+      exists: !!subscription,
+      plan: subscription?.plan,
+      status: subscription?.status,
+      importCount: subscription?.importCount,
+      limits: subscription?.getPlanLimits?.()
+    });
     
     // If no subscription exists, create a free one
     if (!subscription) {
+      console.log('[Subscription] No subscription found, returning free plan');
       return {
         subscription: {
           plan: 'FREE',
@@ -27,6 +45,10 @@ export async function checkSubscriptionQuota(shop) {
 
     // Check if subscription is active
     if (subscription.status !== 'active') {
+      console.log('[Subscription] Subscription not active:', {
+        plan: subscription.plan,
+        status: subscription.status
+      });
       return {
         error: 'Subscription is not active',
         status: 403,
@@ -40,25 +62,30 @@ export async function checkSubscriptionQuota(shop) {
     }
 
     // Check if quota is exceeded
-    const limit = PLANS[subscription.plan].uploads;
-    if (subscription.importCount >= limit) {
-      return {
-        error: 'Upload quota exceeded',
-        status: 403,
-        subscription: {
-          plan: subscription.plan,
-          importCount: subscription.importCount,
-          limit,
-          remainingUploads: limit - subscription.importCount,
-        },
-        upgradeUrl: `/app/billing?shop=${shop}`
-      };
-    }
+    const limit = PLANS[subscription.plan].importLimit;
+    console.log('[Subscription] Checking quota:', {
+      plan: subscription.plan,
+      currentCount: subscription.importCount,
+      limit,
+      remaining: limit - subscription.importCount,
+      rawSubscription: {
+        plan: subscription.plan,
+        status: subscription.status,
+        importCount: subscription.importCount,
+        limits: subscription.limits
+      }
+    });
 
-    // All good
-    return { subscription };
+    return { 
+      subscription: {
+        plan: subscription.plan,
+        status: subscription.status,
+        importCount: subscription.importCount,
+        limits: PLANS[subscription.plan]
+      }
+    };
   } catch (error) {
-    console.error('Error checking subscription quota:', error);
+    console.error('[Subscription] Error checking quota:', error);
     return { error: 'Failed to check subscription quota', status: 500 };
   }
 }
@@ -100,14 +127,40 @@ export async function requireActiveSubscription(shopId) {
 export async function incrementUsage(shopId, type = 'import') {
   try {
     const updateField = type === 'import' ? 'importCount' : 'exportCount';
-    const subscription = await Subscription.findOneAndUpdate(
-      { shopId, status: 'active' },
+    
+    // First check if subscription exists
+    let subscription = await Subscription.findOne({ shopId });
+    
+    if (!subscription) {
+      console.log('[Subscription] No subscription found, creating free one for shop:', shopId);
+      // Get shop to get access token
+      const shop = await Shop.findOne({ _id: shopId });
+      if (!shop) {
+        throw new Error('Shop not found');
+      }
+      
+      // Create new free subscription
+      subscription = await Subscription.create({
+        shopId,
+        accessToken: shop.accessToken,
+        plan: 'FREE',
+        status: 'active',
+        importCount: 0,
+        exportCount: 0,
+        nextBillingDate: null,
+        limits: PLANS['FREE']
+      });
+    }
+
+    // Now increment the count
+    subscription = await Subscription.findOneAndUpdate(
+      { shopId },
       { $inc: { [updateField]: 1 } },
       { new: true }
     );
 
     if (!subscription) {
-      throw new Error('No active subscription found');
+      throw new Error('Failed to update subscription');
     }
 
     return subscription;

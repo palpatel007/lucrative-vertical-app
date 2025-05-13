@@ -3,6 +3,7 @@ import { authenticate } from '../shopify.server';
 import { Shop } from '../models/Shop';
 import { connectDatabase } from '../utils/database';
 import StoreStats from '../models/StoreStats';
+import ImportExportEvent from '../models/ImportExportEvent';
 // import { requireActiveSubscription } from '../utils/subscriptionMiddleware';
 
 export const loader = async ({ request }) => {
@@ -22,6 +23,7 @@ export const loader = async ({ request }) => {
     // Get shop from query parameter
     const url = new URL(request.url);
     const shop = url.searchParams.get('shop');
+    const range = parseInt(url.searchParams.get('range') || '7', 10); // days
     if (!shop) {
       return json({ error: 'Missing shop parameter', totalProduct: 0, import: 0, export: 0 }, { status: 400 });
     }
@@ -54,24 +56,25 @@ export const loader = async ({ request }) => {
       console.error('[Stats] Error fetching product count:', err);
     }
 
-    // Get store stats
-    let storeStats;
-    try {
-      storeStats = await StoreStats.findOne({ shopId: shopDoc._id });
-      console.log('[Stats] Found store stats:', {
-        shop: shop,
-        shopId: shopDoc._id,
-        stats: storeStats
-      });
-    } catch (err) {
-      console.error('[Stats] Error fetching store stats:', err);
-      storeStats = null;
-    }
+    // Aggregate import/export events for the selected range
+    const sinceDate = new Date(Date.now() - range * 24 * 60 * 60 * 1000);
+    const [importAgg, exportAgg] = await Promise.all([
+      ImportExportEvent.aggregate([
+        { $match: { shopId: shopDoc._id, type: 'import', date: { $gte: sinceDate } } },
+        { $group: { _id: null, total: { $sum: '$count' } } }
+      ]),
+      ImportExportEvent.aggregate([
+        { $match: { shopId: shopDoc._id, type: 'export', date: { $gte: sinceDate } } },
+        { $group: { _id: null, total: { $sum: '$count' } } }
+      ])
+    ]);
+    const importCount = importAgg[0]?.total || 0;
+    const exportCount = exportAgg[0]?.total || 0;
 
     const stats = {
       totalProduct,
-      import: storeStats?.importCount || 0,
-      export: storeStats?.exportCount || 0
+      import: importCount,
+      export: exportCount
     };
 
     console.log('[Stats] Returning stats:', stats);

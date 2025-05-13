@@ -3,7 +3,7 @@
 client_id = "8895518da41bc492b0688f740c7c4e1b"
 name = "lucrative-vertical-app"
 handle = "lucrative-vertical-app-19"
-application_url = "https://cas-saying-nurses-polo.trycloudflare.com"
+application_url = "https://thats-rebates-responsibility-how.trycloudflare.com"
 embedded = true
 
 [build]
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://cas-saying-nurses-polo.trycloudflare.com/auth/callback",
-  "https://cas-saying-nurses-polo.trycloudflare.com/auth/shopify/callback",
-  "https://cas-saying-nurses-polo.trycloudflare.com/api/auth/callback"
+  "https://thats-rebates-responsibility-how.trycloudflare.com/auth/callback",
+  "https://thats-rebates-responsibility-how.trycloudflare.com/auth/shopify/callback",
+  "https://thats-rebates-responsibility-how.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
