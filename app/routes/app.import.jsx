@@ -39,7 +39,7 @@ import wixIcon from '../assets/source-icons/wix.png';
 import alibabaIcon from '../assets/source-icons/alibaba.png';
 import etsyIcon from '../assets/source-icons/etsy.png';
 import squarespaceIcon from '../assets/source-icons/squarespace.png';
-import bigcommerceIcon from '../assets/source-icons/bigcommerce.png';
+import bigcommerceIcon from '../assets/source-icons/bigCommerce.png';
 import shopifyIcon from '../assets/source-icons/shopify.png';
 import csvIcon from '../assets/source-icons/csv.png';
 
