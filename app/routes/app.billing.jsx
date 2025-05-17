@@ -20,11 +20,12 @@ import {
 } from '@shopify/polaris';
 import { CheckCircleIcon } from '@shopify/polaris-icons';
 import { useState, useCallback, useEffect } from 'react';
-import { useSubmit, useLoaderData, useNavigate } from '@remix-run/react';
+import { useSubmit, useLoaderData, useNavigate, useSearchParams } from '@remix-run/react';
 import { authenticate } from '../shopify.server';
-import { redirect } from '@remix-run/node';
+import { redirect, json } from '@remix-run/node';
 import { useAppBridge } from '@shopify/app-bridge-react';
 import { Redirect } from '@shopify/app-bridge/actions';
+import { Subscription } from '../models/subscription.js';
 
 import frame1 from '../assets/Frame (1).png';
 import frame2 from '../assets/Frame (2).png';
@@ -36,9 +37,23 @@ import tutorialIcon from '../assets/tutorialIcon.png';
 import Footer from '../components/Footer';
 
 export const loader = async ({ request }) => {
+  // Authenticate the user/session (same as dashboard)
+  const { session } = await authenticate.admin(request);
+  console.log('[Billing Loader] Session:', session);
+  const shopDomain = session.shop;
+  const accessToken = session.accessToken;
+
+  if (!shopDomain) {
+    console.warn('[Billing Loader] No valid session found. Redirecting to login page.', { session });
+    return json({ error: "Missing shop parameter" }, { status: 400 });
+  }
+
+  console.log('[Billing Loader] Request headers:', request.headers);
+  console.log('[Billing Loader] Session:', session);
+  console.log('[Billing Loader] Cookies:', request.headers.get('cookie'));
   try {
     console.log('[Billing Loader] Starting billing loader');
-    const { session } = await authenticate.admin(request);
+    const { session: sessionFromAuth } = await authenticate.admin(request);
     console.log('[Billing Loader] Session details:', {
       shop: session?.shop,
       hasAccessToken: !!session?.accessToken,
@@ -46,14 +61,63 @@ export const loader = async ({ request }) => {
     });
 
     if (!session || !session.shop) {
-      console.log('[Billing Loader] No valid session, redirecting to auth');
-      return redirect('/auth');
+      const url = new URL(request.url);
+      const shop = url.searchParams.get('shop');
+      const chargeId = url.searchParams.get('charge_id');
+      const plan = url.searchParams.get('plan');
+      if (shop && chargeId && plan) {
+        return redirect(`/auth?shop=${shop}&returnTo=/app/dashboard`);
+      }
+      if (shop) {
+        return redirect(`/auth?shop=${shop}`);
+      }
+      return redirect('/auth/login');
     }
 
     const shop = session.shop;
+    const url = new URL(request.url);
+    const chargeId = url.searchParams.get('charge_id');
+    const planName = url.searchParams.get('plan');
+    const shopName = url.searchParams.get('shop');
+
+    try {
+      if (chargeId && planName && shopName) {
+        console.log('[Billing Loader] session.shop:', session.shop, 'session.accessToken:', session.accessToken);
+        // Fetch charge status from Shopify
+        const response = await fetch(
+          `https://${session.shop}/admin/api/2024-01/recurring_application_charges/${chargeId}.json`,
+          {
+            headers: {
+              'X-Shopify-Access-Token': session.accessToken,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[Billing Loader] Shopify API error:', response.status, errorText);
+          throw new Error('Failed to fetch charge from Shopify');
+        }
+        const data = await response.json();
+        const charge = data.recurring_application_charge;
+
+        if (charge && charge.status === 'active') {
+          const shopRecord = await Shop.findOne({ shop: session.shop });
+          if (!shopRecord) throw new Error('Shop not found');
+
+          await Subscription.findOneAndUpdate(
+            { shopId: shopRecord._id }, 
+            { plan: planName, status: 'active' }
+          );
+          return json({ redirectToDashboard: true });
+        }
+      }
+    } catch (err) {
+      console.error('[Billing Loader] Charge check error:', err);
+      throw err;
+    }
 
     // Get the current URL to construct the proper API URL
-    const url = new URL(request.url);
     const baseUrl = `${url.protocol}//${url.host}`;
     console.log('[Billing Loader] Base URL:', baseUrl);
 
@@ -249,15 +313,41 @@ function BillingSkeleton() {
 }
 
 export default function BillingPage() {
-  const { subscription, plans } = useLoaderData();
+  const { subscription, plans, session, redirectToDashboard } = useLoaderData();
   const [toastActive, setToastActive] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [loadingPlan, setLoadingPlan] = useState(null);
   const submit = useSubmit();
   const navigate = useNavigate();
-  const { session } = useLoaderData();
-  const app = useAppBridge();
+  const [searchParams] = useSearchParams();
+  const shop = searchParams.get('shop');
+  const plan = searchParams.get('plan');
+  const chargeId = searchParams.get('charge_id');
   const [isLoading, setIsLoading] = useState(true);
+  const app = useAppBridge();
+  const [cookieWarning, setCookieWarning] = useState(false);
+
+  useEffect(() => {
+    function isEmbedded() {
+      try {
+        return window.top !== window.self;
+      } catch (e) {
+        return true;
+      }
+    }
+    if (!isEmbedded() && shop) {
+      window.location.href = `/app/force-redirect?shop=${shop}`;
+      return;
+    }
+    if (shop) {
+      const appHandle = shop;
+      const redirect = Redirect.create(app);
+      redirect.dispatch(
+        Redirect.Action.REMOTE,
+        `https://${shop}/admin/apps/${appHandle}`
+      );
+    }
+  }, [app, shop]);
 
   const handleUpgrade = async (planName) => {
     try {
@@ -284,13 +374,22 @@ export default function BillingPage() {
         throw new Error('No confirmation URL received from server');
       }
 
-      // Use App Bridge for top-level redirect if available
-      if (app && Redirect) {
-        const redirect = Redirect.create(app);
-        redirect.dispatch(Redirect.Action.REMOTE, data.confirmationUrl);
-      } else {
-        window.location.href = data.confirmationUrl;
+      // Debug logs for App Bridge redirect issue
+      function isEmbedded() {
+        try {
+          return window.top !== window.self;
+        } catch (e) {
+          return true;
+        }
       }
+      console.log('isEmbedded:', isEmbedded());
+      console.log('app:', app);
+      const redirect = Redirect.create(app);
+      console.log('redirect:', redirect);
+      console.log('redirect.dispatch:', redirect && redirect.dispatch);
+
+      // Redirect user to Shopify's confirmationUrl for approval
+      window.top.location.href = data.confirmationUrl;
     } catch (error) {
       setToastMessage('Failed to process upgrade. ' + (error.message || 'Please try again.'));
       setToastActive(true);
@@ -434,6 +533,39 @@ export default function BillingPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (chargeId && plan && shop) {
+      // Optionally, check subscription?.status === 'active' before navigating
+      navigate('/app/billing', { replace: true });
+    }
+  }, [chargeId, plan, shop, navigate]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get('returnTo');
+    if (returnTo && subscription?.status === 'active') {
+      navigate(returnTo, { replace: true });
+    }
+  }, [subscription, navigate]);
+
+  useEffect(() => {
+    if (redirectToDashboard && shop) {
+      const appHandle = session.shop; // TODO: Set your app's handle here
+      const redirect = Redirect.create(app);
+      redirect.dispatch(
+        Redirect.Action.REMOTE,
+        `https://${shop}/admin/apps/${appHandle}`
+      );
+    }
+  }, [redirectToDashboard, app, shop]);
+
+  useEffect(() => {
+    // Check if cookies are enabled and session cookie is present
+    if (!document.cookie || document.cookie === '') {
+      setCookieWarning(true);
+    }
+  }, []);
+
   if (isLoading) {
     return <BillingSkeleton />;
   }
@@ -496,6 +628,13 @@ export default function BillingPage() {
       </Page>
       {toastActive && (
         <Toast content={toastMessage} onDismiss={toggleToast} />
+      )}
+      {cookieWarning && (
+        <Box padding="400" background="bg-warning-subdued">
+          <Text color="critical">
+            Warning: Cookies are disabled or blocked. Please enable third-party cookies in your browser and ensure you are not using a tunnel that blocks cookies (like some Cloudflare/ngrok setups). Shopify embedded apps require cookies to work correctly.
+          </Text>
+        </Box>
       )}
     </Frame>
   );

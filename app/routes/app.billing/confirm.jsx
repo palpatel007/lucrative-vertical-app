@@ -9,11 +9,13 @@ import { useNavigate, useSearchParams } from '@remix-run/react';
 
 export const loader = async ({ request }) => {
     try {
-        console.log('[Billing Confirm] Starting confirmation process');
+        console.log('[Billing Confirm] Loader called. Request URL:', request.url);
+        console.log('[Billing Confirm] Request headers:', Object.fromEntries(request.headers.entries()));
         const { session } = await authenticate.admin(request);
+        console.log('[Billing Confirm] Session:', session);
         
         if (!session) {
-            console.log('[Billing Confirm] No valid session, redirecting to auth');
+            console.warn('[Billing Confirm] No valid session found. Redirecting to /auth.', { session });
             return redirect('/auth');
         }
 

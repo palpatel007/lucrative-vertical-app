@@ -1,6 +1,7 @@
 import { json } from '@remix-run/node';
 import { authenticate } from '../shopify.server.js';
 import { Subscription } from '../models/subscription.js';
+import { Shop } from '../models/Shop.js';
 
 export const action = async ({ request }) => {
     try {
@@ -64,9 +65,11 @@ async function handleSubscriptionUpdate(payload, shop) {
             status: charge.status,
             nextBillingDate: charge.next_billing_date
         });
-
+        const shopRecord = await Shop.findOne({ shop: session.shop });
+        if (!shopRecord) throw new Error('Shop not found');
+        
         await Subscription.findOneAndUpdate(
-            { shopId: shop },
+            { shopId: shopRecord._id },
             {
                 status: charge.status,
                 nextBillingDate: new Date(charge.next_billing_date),
@@ -98,10 +101,12 @@ async function handleSubscriptionCancel(payload, shop) {
             shop,
             chargeId: charge.id
         });
-
+        const shopRecord = await Shop.findOne({ shop: session.shop });
+        if (!shopRecord) throw new Error('Shop not found');
+        
         await Subscription.findOneAndUpdate(
-            { shopId: shop },
-            { 
+          { shopId: shopRecord._id }, // ✅ correct ID
+          { 
                 status: 'cancelled',
                 cancelledAt: new Date(),
                 shopifyChargeId: charge.id
@@ -130,10 +135,12 @@ async function handlePaymentFailure(payload, shop) {
             shop,
             chargeId: charge.id
         });
-
+        const shopRecord = await Shop.findOne({ shop: session.shop });
+        if (!shopRecord) throw new Error('Shop not found');
+        
         await Subscription.findOneAndUpdate(
-            { shopId: shop },
-            { 
+          { shopId: shopRecord._id }, // ✅ correct ID
+          { 
                 status: 'payment_failed',
                 lastPaymentFailure: new Date(),
                 shopifyChargeId: charge.id

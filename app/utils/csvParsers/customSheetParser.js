@@ -73,27 +73,54 @@ export const customSheetParser = {
                     return value.split(',').map(item => item.trim());
                 };
 
-                // Helper function to parse image URLs
+                // Robust image handling: filter invalid URLs
                 const parseImages = (field) => {
                     const urls = parseArray(field);
-                    return urls.map(url => ({ src: url }));
+                    return urls
+                        .filter(url => url && url !== 'null' && url !== null && url !== undefined && url.trim() !== '')
+                        .map((url, i) => ({ src: url, position: i + 1 }));
                 };
+
+                // Robust vendor logic: prefer brand, then manufacturer, then vendor
+                const brand = getValue('brand', '');
+                const manufacturer = getValue('manufacturer', '');
+                let vendor = brand || manufacturer || getValue('vendor', '');
+
+                // Collections and tags as arrays
+                const collections = parseArray('collections');
+                const tags = parseArray('tags');
+
+                // Variants: support single or multiple (if you want to expand)
+                const variants = [
+                    {
+                        title: getValue('variantTitle', 'Default'),
+                        price: parseFloatValue('variantPrice', parseFloatValue('price', 0)),
+                        compareAtPrice: parseFloatValue('variantCompareAtPrice', parseFloatValue('compareAtPrice')),
+                        sku: getValue('variantSku', getValue('sku', '')),
+                        barcode: getValue('variantBarcode', getValue('barcode', '')),
+                        weight: parseFloatValue('variantWeight', parseFloatValue('weight', 0)),
+                        weightUnit: getValue('variantWeightUnit', getValue('weightUnit', 'kg')),
+                        inventoryQuantity: parseIntValue('variantInventoryQuantity', parseIntValue('inventoryQuantity')),
+                        inventoryPolicy: parseIntValue('variantInventoryQuantity', parseIntValue('inventoryQuantity')) > 0 ? 'CONTINUE' : 'DENY'
+                    }
+                ];
 
                 const baseProduct = {
                     title: getValue('title', 'Untitled Product'),
                     description: getValue('description', ''),
-                    vendor: getValue('vendor', ''),
+                    vendor,
                     productType: getValue('productType', ''),
-                    tags: parseArray('tags'),
+                    tags,
                     price: parseFloatValue('price', 0),
                     compareAtPrice: parseFloatValue('compareAtPrice'),
                     sku: getValue('sku', ''),
                     barcode: getValue('barcode', ''),
                     weight: parseFloatValue('weight', 0),
-                    weightUnit: getValue('weightUnit', 'KILOGRAMS'),
+                    weightUnit: getValue('weightUnit', 'kg'),
                     inventoryQuantity: parseIntValue('inventoryQuantity'),
                     inventoryPolicy: parseIntValue('inventoryQuantity') > 0 ? 'CONTINUE' : 'DENY',
                     images: parseImages('images'),
+                    collections,
                     status: getValue('status', '')?.toLowerCase() === 'active' ? 'ACTIVE' : 'DRAFT',
                     options: [
                         {
@@ -105,19 +132,7 @@ export const customSheetParser = {
                             values: parseArray('optionValue2')
                         }
                     ],
-                    variants: [
-                        {
-                            title: getValue('variantTitle', 'Default'),
-                            price: parseFloatValue('variantPrice', parseFloatValue('price', 0)),
-                            compareAtPrice: parseFloatValue('variantCompareAtPrice', parseFloatValue('compareAtPrice')),
-                            sku: getValue('variantSku', getValue('sku', '')),
-                            barcode: getValue('variantBarcode', getValue('barcode', '')),
-                            weight: parseFloatValue('variantWeight', parseFloatValue('weight', 0)),
-                            weightUnit: getValue('variantWeightUnit', getValue('weightUnit', 'KILOGRAMS')),
-                            inventoryQuantity: parseIntValue('variantInventoryQuantity', parseIntValue('inventoryQuantity')),
-                            inventoryPolicy: parseIntValue('variantInventoryQuantity', parseIntValue('inventoryQuantity')) > 0 ? 'CONTINUE' : 'DENY'
-                        }
-                    ]
+                    variants
                 };
 
                 return baseProduct;

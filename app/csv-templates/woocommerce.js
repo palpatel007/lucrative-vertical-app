@@ -61,6 +61,10 @@ export const mapProduct = (shopifyProduct) => {
 
 // WooCommerce -> Shopify (for import)
 export const mapToShopify = (row) => {
+  // Parse stock quantity, defaulting to 0 if invalid
+  const stockQuantity = parseInt(row['Stock'] || '0', 10);
+  const isInStock = row['In stock?'] === '1';
+  
   return {
     title: row['Name'],
     handle: row['SKU'],
@@ -74,7 +78,10 @@ export const mapToShopify = (row) => {
       sku: row['SKU'],
       price: row['Regular price'] || '',
       compare_at_price: row['Sale price'] || '',
-      inventory_quantity: row['Stock'] || 0,
+      inventory_quantity: isNaN(stockQuantity) ? 0 : stockQuantity,
+      inventory_management: 'shopify',
+      inventory_policy: 'deny',
+      requires_shipping: true,
       weight: row['Weight (kg)'] || '',
     }],
   };

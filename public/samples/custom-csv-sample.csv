@@ -1,0 +1,2 @@
+title,description,brand,manufacturer,product_type,price,compare_at_price,sku,barcode,weight,weight_unit,inventory_quantity,images,collections,tags,variant_title,variant_price,variant_sku,variant_barcode,variant_weight,variant_weight_unit
+Sample Product,This is a sample product.,BrandX,BrandX Inc.,CategoryA,19.99,24.99,SKU123,123456789012,0.5,kg,10,"https://example.com/image1.jpg,https://example.com/image2.jpg","Collection1,Collection2","tag1,tag2",Default,19.99,SKU123,123456789012,0.5,kg 

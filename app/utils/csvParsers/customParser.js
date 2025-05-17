@@ -1,155 +1,57 @@
-import { parse } from 'csv-parse';
+import { parse } from 'csv-parse/sync';
+import { stringify } from 'csv-stringify';
 
-class CustomParser {
-    static async parseCSV(csvData, fieldMapping = null) {
+export const customParser = {
+    async parseCSV(csvText) {
+        const records = parse(csvText, {
+            columns: true,
+            skip_empty_lines: true,
+            trim: true
+        });
+        return records.map(row => {
+            return {
+                id: row['ID'] || '',
+                title: row['Title'] || '',
+                description: row['Description'] || '',
+                handle: row['Handle'] || '',
+                vendor: row['Vendor'] || '',
+                productType: row['Type'] || '',
+                tags: row['Tags'] ? row['Tags'].split(',').map(t => t.trim()).filter(Boolean) : [],
+                images: row['Images'] ? row['Images'].split(',').map(src => ({ src: src.trim() })).filter(img => img.src) : [],
+                status: row['Status'] || '',
+                variants: [{
+                    sku: row['SKU'] || '',
+                    price: row['Price'] || '',
+                    compareAtPrice: row['Compare At Price'] || '',
+                    inventoryQuantity: row['Inventory'] || ''
+                }]
+            };
+        });
+    },
+    async exportToCSV(products) {
+        const columns = [
+            'ID', 'Title', 'Description', 'SKU', 'Price', 'Compare At Price', 'Inventory', 'Status', 'Type', 'Vendor', 'Tags', 'Images', 'Handle'
+        ];
+        const records = products.map(product => [
+            product.id ? (product.id.split('/').pop()) : (idx + 1) || '',
+            product.title || '',
+            product.description || '',
+            product.variants && product.variants[0] ? product.variants[0].sku || '' : '',
+            product.variants && product.variants[0] ? product.variants[0].price || '' : '',
+            product.variants && product.variants[0] ? product.variants[0].compareAtPrice || '' : '',
+            product.variants && product.variants[0] ? product.variants[0].inventoryQuantity || '' : '',
+            product.status || '',
+            product.productType || '',
+            product.vendor || '',
+            Array.isArray(product.tags) ? product.tags.join(',') : (product.tags || ''),
+            Array.isArray(product.images) ? product.images.map(img => img.src).join(',') : '',
+            product.handle || ''
+        ]);
         return new Promise((resolve, reject) => {
-            const products = [];
-            
-            parse(csvData, {
-                columns: true,
-                skip_empty_lines: true,
-                trim: true
-            })
-            .on('data', (row) => {
-                const product = this.mapRowToProduct(row, fieldMapping);
-                products.push(product);
-            })
-            .on('end', () => {
-                resolve(products);
-            })
-            .on('error', (error) => {
-                reject(error);
+            stringify([columns, ...records], (err, output) => {
+                if (err) reject(err);
+                else resolve(output);
             });
         });
-    }
-
-    static mapRowToProduct(row, fieldMapping) {
-        // Default field mapping if none provided
-        const defaultMapping = {
-            title: 'title',
-            description: 'description',
-            price: 'price',
-            compareAtPrice: 'compare_at_price',
-            sku: 'sku',
-            barcode: 'barcode',
-            weight: 'weight',
-            inventoryQuantity: 'inventory',
-            images: 'images',
-            categories: 'categories',
-            status: 'status'
-        };
-
-        const mapping = fieldMapping || defaultMapping;
-
-        const product = {
-            title: row[mapping.title] || '',
-            description: row[mapping.description] || '',
-            price: parseFloat(row[mapping.price]) || 0,
-            compareAtPrice: parseFloat(row[mapping.compareAtPrice]) || null,
-            sku: row[mapping.sku] || '',
-            barcode: row[mapping.barcode] || '',
-            weight: parseFloat(row[mapping.weight]) || 0,
-            weightUnit: 'KILOGRAMS',
-            inventoryQuantity: parseInt(row[mapping.inventoryQuantity]) || 0,
-            images: this.parseImages(row[mapping.images]),
-            variants: this.parseVariants(row, mapping),
-            status: this.parseStatus(row[mapping.status]),
-            categories: this.parseCategories(row[mapping.categories])
-        };
-
-        return product;
-    }
-
-    static parseImages(imagesField) {
-        if (!imagesField) return [];
-        
-        const images = [];
-        const imageUrls = imagesField.split(/[,|]/);
-        
-        imageUrls.forEach(url => {
-            if (url.trim()) {
-                images.push({
-                    src: url.trim(),
-                    position: images.length + 1
-                });
-            }
-        });
-        
-        return images;
-    }
-
-    static parseVariants(row, mapping) {
-        const variants = [];
-        
-        // Basic variant from main product
-        variants.push({
-            title: 'Default',
-            price: parseFloat(row[mapping.price]) || 0,
-            compareAtPrice: parseFloat(row[mapping.compareAtPrice]) || null,
-            sku: row[mapping.sku] || '',
-            barcode: row[mapping.barcode] || '',
-            weight: parseFloat(row[mapping.weight]) || 0,
-            weightUnit: 'KILOGRAMS',
-            inventoryQuantity: parseInt(row[mapping.inventoryQuantity]) || 0
-        });
-
-        return variants;
-    }
-
-    static parseStatus(status) {
-        if (!status) return 'DRAFT';
-        
-        const statusMap = {
-            'active': 'ACTIVE',
-            'published': 'ACTIVE',
-            'live': 'ACTIVE',
-            'draft': 'DRAFT',
-            'archived': 'ARCHIVED'
-        };
-
-        return statusMap[status.toLowerCase()] || 'DRAFT';
-    }
-
-    static parseCategories(categoriesField) {
-        if (!categoriesField) return [];
-        return categoriesField.split(/[,|]/).map(cat => cat.trim());
-    }
-
-    static formatForExport(products, fieldMapping = null) {
-        // Default field mapping if none provided
-        const defaultMapping = {
-            title: 'Title',
-            description: 'Description',
-            price: 'Price',
-            compareAtPrice: 'Compare at Price',
-            sku: 'SKU',
-            barcode: 'Barcode',
-            weight: 'Weight',
-            inventoryQuantity: 'Inventory',
-            images: 'Images',
-            categories: 'Categories',
-            status: 'Status'
-        };
-
-        const mapping = fieldMapping || defaultMapping;
-
-        const headers = Object.values(mapping);
-        const rows = products.map(product => [
-            product.title,
-            product.description,
-            product.variants[0]?.price || '',
-            product.variants[0]?.compareAtPrice || '',
-            product.variants[0]?.sku || '',
-            product.variants[0]?.barcode || '',
-            product.variants[0]?.weight || '',
-            product.variants[0]?.inventoryQuantity || '',
-            product.images.map(img => img.src).join(','),
-            product.categories?.join(',') || '',
-            product.status
-        ]);
-
-        return [headers, ...rows].map(row => row.join(',')).join('\n');
-    }
-}
-
-export default CustomParser; 
+    },
+};

@@ -15,6 +15,17 @@ import { ebayParser } from '../utils/csvParsers/ebayParser.js';
 import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
 import { Shop } from '../models/Shop.js';
 import StoreStats from '../models/StoreStats.js';
+import { buildShopifyProductFromShopifyCSV } from '../utils/productBuilders/shopifyBuilder.js';
+import { buildShopifyProductFromWooCommerceCSV } from '../utils/productBuilders/wooCommerceBuilder.js';
+import { buildShopifyProductFromWixCSV } from '../utils/productBuilders/wixBuilder.js';
+import { buildShopifyProductFromBigCommerceCSV } from '../utils/productBuilders/bigCommerceBuilder.js';
+import { buildShopifyProductFromSquarespaceCSV } from '../utils/productBuilders/squarespaceBuilder.js';
+import { buildShopifyProductFromAmazonCSV } from '../utils/productBuilders/amazonBuilder.js';
+import { buildShopifyProductFromAlibabaCSV } from '../utils/productBuilders/alibabaBuilder.js';
+import { buildShopifyProductFromCustomCSV } from '../utils/productBuilders/customBuilder.js';
+import { buildShopifyProductFromAliExpressCSV } from '../utils/productBuilders/aliExpressBuilder.js';
+import { buildShopifyProductFromEtsyCSV } from '../utils/productBuilders/etsyBuilder.js';
+import { buildShopifyProductFromEbayCSV } from '../utils/productBuilders/ebayBuilder.js';
 
 // Shopify API setup (replace with your actual credentials or use env vars)
 const shopify = shopifyApi({
@@ -69,26 +80,7 @@ export const action = async ({ request }) => {
     const currentCount = subscription.importCount;
     const limit = planLimits.importLimit;
 
-    console.log('[Import] Current limits:', {
-      shop,
-      plan: subscription.plan,
-      currentCount,
-      limit,
-      remainingImports: limit - currentCount,
-      subscriptionDetails: {
-        status: subscription.status,
-        limits: subscription.limits,
-        importCount: subscription.importCount
-      }
-    });
-
     if (currentCount >= limit) {
-      console.log('[Import] Quota exceeded:', {
-        shop,
-        currentCount,
-        limit,
-        remainingImports: 0
-      });
       return json({
         success: false,
         error: 'Import quota exceeded',
@@ -120,15 +112,8 @@ export const action = async ({ request }) => {
 
     let products;
     try {
-      console.log('[Import] Starting CSV parsing:', {
-        shop,
-        format,
-        fileSize: csvText.length
-      });
-
       switch (format.toLowerCase()) {
         case 'shopify':
-          console.log('[Import] Using Shopify parser');
           const parseResult = await shopifyParser.parseCSV(csvText, { shop }, accessToken);
           products = Array.isArray(parseResult.products) ? parseResult.products : [];
           if (!Array.isArray(products)) {
@@ -187,12 +172,6 @@ export const action = async ({ request }) => {
           }, { status: 400 });
       }
     } catch (error) {
-      console.error('[Import] CSV parsing error:', {
-        shop,
-        format,
-        error: error.message,
-        stack: error.stack
-      });
       return json({
         success: false,
         error: `Failed to parse CSV: ${error.message}`,
@@ -205,32 +184,12 @@ export const action = async ({ request }) => {
       }, { status: 400 });
     }
 
-    // Log parsed products before processing
-    console.log('[Import] Parsed products summary:', {
-      shop,
-      format,
-      totalProducts: products.length,
-      productDetails: products.map(p => ({
-        handle: p.handle,
-        title: p.title,
-        variantCount: (p.variants || []).length,
-        imageCount: (p.images || []).length,
-        status: p.status
-      }))
-    });
+    // Log the number of products to import
+    console.log('Number of products to import:', products.length);
 
-    // Check if the number of products would exceed the limit
     if (currentCount + products.length > limit) {
       const remainingSlots = limit - currentCount;
       const excessProducts = products.length - remainingSlots;
-      console.log('[Import] Batch would exceed quota:', {
-        shop,
-        currentCount,
-        batchSize: products.length,
-        limit,
-        wouldExceedBy: excessProducts,
-        remainingImports: remainingSlots
-      });
 
       let errorMessage;
       if (remainingSlots === 0) {
@@ -261,7 +220,6 @@ export const action = async ({ request }) => {
 
     // Use the authenticated session values instead of env vars
     const shopEnv = shop;
-    console.log('Shop:', shopEnv, 'Access Token:', accessToken);
     if (!shopEnv || !accessToken) {
       return json({
         success: false,
@@ -280,97 +238,68 @@ export const action = async ({ request }) => {
     const results = { success: [], failed: [] };
     for (let i = 0; i < products.length; i += batchSize) {
       const batch = products.slice(i, i + batchSize);
-      console.log('[Import] Processing batch:', {
-        shop,
-        batchNumber: Math.floor(i / batchSize) + 1,
-        batchSize: batch.length,
-        startIndex: i,
-        endIndex: i + batch.length - 1
-      });
-
-      const batchPromises = batch.map(async (product, index) => {
-        try {
-          console.log('[Import] Processing product:', {
-            shop,
-            batchNumber: Math.floor(i / batchSize) + 1,
-            productIndex: index,
-            productTitle: product.title || product.Title,
-            hasVariants: product.variants?.length > 0,
-            hasImages: product.images?.length > 0
-          });
-
-          // Function to upload image to Shopify CDN
-          async function uploadImageToShopify(imageUrl) {
-            try {
-              console.log('Attempting to upload image:', imageUrl);
-
-              // First, fetch the image
-              const imageResponse = await fetch(imageUrl);
-              if (!imageResponse.ok) {
-                throw new Error(`Failed to fetch image: ${imageUrl}`);
-              }
-
-              const imageBuffer = await imageResponse.arrayBuffer();
-              const base64Image = Buffer.from(imageBuffer).toString('base64');
-
-              // Upload to Shopify using the correct endpoint
-              const uploadResponse = await fetch(`https://${shopEnv}/admin/api/${LATEST_API_VERSION}/products/${result.product.id}/images.json`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-Shopify-Access-Token': accessToken,
-                },
-                body: JSON.stringify({
-                  image: {
-                    attachment: base64Image,
-                    filename: `product-image-${Date.now()}.jpg`,
-                    position: 1
-                  }
-                })
-              });
-
-              if (!uploadResponse.ok) {
-                const errorText = await uploadResponse.text();
-                throw new Error(`Failed to upload image to Shopify: ${errorText}`);
-              }
-
-              const uploadResult = await uploadResponse.json();
-              console.log('Successfully uploaded image:', uploadResult.image.src);
-              return uploadResult.image.src;
-            } catch (error) {
-              console.error('Error uploading image:', error);
-              return null;
-            }
+      for (let j = 0; j < batch.length; j++) {
+        const product = batch[j];
+        // Log each product before upload
+        // console.log('[Preparing to upload product]', JSON.stringify(product, null, 2));
+        try { 
+          // Use builder based on format
+          let shopifyProduct;
+          switch (format.toLowerCase()) {
+            case 'shopify':
+              shopifyProduct = buildShopifyProductFromShopifyCSV(product);
+              break;
+            case 'woocommerce':
+              shopifyProduct = buildShopifyProductFromWooCommerceCSV(product);
+              break;
+            case 'wix':
+              shopifyProduct = buildShopifyProductFromWixCSV(product);
+              break;
+            case 'bigcommerce':
+              shopifyProduct = buildShopifyProductFromBigCommerceCSV(product);
+              break;
+            case 'squarespace':
+              shopifyProduct = buildShopifyProductFromSquarespaceCSV(product);
+              break;
+            case 'amazon':
+              shopifyProduct = buildShopifyProductFromAmazonCSV(product);
+              break;
+            case 'alibaba':
+              shopifyProduct = buildShopifyProductFromAlibabaCSV(product);
+              break;
+            case 'customcsv':
+              shopifyProduct = buildShopifyProductFromCustomCSV(product, fieldMapping);
+              break;
+            case 'aliexpress':
+              shopifyProduct = buildShopifyProductFromAliExpressCSV(product);
+              break;
+            case 'etsy':
+              shopifyProduct = buildShopifyProductFromEtsyCSV(product);
+              break;
+            case 'ebay':
+              shopifyProduct = buildShopifyProductFromEbayCSV(product);
+              break;
+            default:
+              throw new Error('Invalid CSV format for builder');
           }
 
-          // Enhanced product creation with more fields
-          const shopifyProduct = {
-            title: product.Title || product.title || 'Untitled',
-            body_html: product.Description || product.description || product.Body || product.body_html || '',
-            vendor: product.Vendor || product.vendor || '',
-            product_type: product.Type || product.product_type || '',
-            variants: [
-              {
-                price: product['Sale price'] || product['Sale Price'] || product.sale_price || product.Sale_price || product.Price || product.price || '0.00',
-                compare_at_price: product['Regular price'] || product['Regular Price'] || product.regular_price || product.Regular_price || product['Compare Price'] || product.compare_at_price || '',
-                sku: product.SKU || product.sku || '',
-                inventory_quantity: product.Quantity || product.quantity || product['Inventory Quantity'] || 0,
-                inventory_management: 'shopify',
-                inventory_policy: 'deny',
-              },
-            ],
-            status: 'active'
-          };
+          // Log skipped products if required fields are missing
+          if (!shopifyProduct.title || !shopifyProduct.variants || !shopifyProduct.variants.length) {
+            console.warn('[Skipped Product - Missing Required Fields]', JSON.stringify(shopifyProduct, null, 2));
+            continue;
+          }
 
-          console.log('[Import] Creating Shopify product:', {
-            shop,
-            productTitle: shopifyProduct.title,
-            variantCount: shopifyProduct.variants.length,
-            price: shopifyProduct.variants[0].price,
-            sku: shopifyProduct.variants[0].sku
-          });
+          // Only set variants/images/status if not already set by the builder
+          if (!shopifyProduct.variants || !shopifyProduct.variants.length) {
+            // fallback: do nothing or set a default variant if needed
+          }
+          if (!shopifyProduct.images) {
+            shopifyProduct.images = product.images || [];
+          }
+          if (!shopifyProduct.status) {
+            shopifyProduct.status = 'active';
+          }
 
-          // First create the product without images
           const response = await fetch(`https://${shopEnv}/admin/api/${LATEST_API_VERSION}/products.json`, {
             method: 'POST',
             headers: {
@@ -380,28 +309,20 @@ export const action = async ({ request }) => {
             body: JSON.stringify({ product: shopifyProduct }),
           });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[Import] Failed to create product:', {
-              shop,
-              productTitle: shopifyProduct.title,
-              error: errorText
-            });
-            throw new Error(`Failed to create product: ${errorText}`);
-          }
-
+          // Log the uploaded product payload and Shopify's response
+          console.log('[Uploaded Product Payload]', JSON.stringify(shopifyProduct, null, 2));
           const result = await response.json();
-          console.log('[Import] Product created successfully:', {
-            shop,
-            productId: result.product.id,
-            productTitle: result.product.title,
-            variantCount: result.product.variants?.length
-          });
+          console.log('[Shopify API Response]', JSON.stringify(result, null, 2));
+
+          // Success check and push to results.success or results.failed
+          if (response.ok && (result.product || result.id || (result.products && result.products.length > 0))) {
+            results.success.push({ product: shopifyProduct, result: result.product || result });
+          } else {
+            results.failed.push({ product: shopifyProduct, error: result.errors || result });
+          }
 
           // Handle collections/categories
           if (product.collections && Array.isArray(product.collections)) {
-            console.log('Processing collections for product:', product.title);
-
             for (const collectionPath of product.collections) {
               try {
                 // Split the collection path into parts
@@ -471,32 +392,25 @@ export const action = async ({ request }) => {
                   parentId = collectionId;
                 }
               } catch (error) {
-                console.error('Error processing collection:', error);
               }
             }
           }
 
           // Now upload images to the created product
           if (product.images && Array.isArray(product.images)) {
-            console.log('Processing images for product:', product.title);
-            let position = 1;
-
             for (const image of product.images) {
               if (image.src) {
-                console.log('Uploading image:', image.src);
                 const shopifyImageUrl = await uploadImageToShopify(image.src);
                 if (shopifyImageUrl) {
-                  position++;
                 }
               }
             }
           }
 
-          if (response.ok && result.product) {
+          if (response.ok && (result.product || result.id || (result.products && result.products.length > 0))) {
             try {
               // Increment usage count after successful import
               await incrementUsage(shopDoc._id, 'import');
-              console.log('[Import] Successfully incremented import count for shop:', shopDoc._id);
 
               // Update StoreStats
               const storeStats = await StoreStats.findOneAndUpdate(
@@ -513,42 +427,15 @@ export const action = async ({ request }) => {
                   new: true 
                 }
               );
-              console.log('[Import] Updated store stats:', {
-                shop: shop,
-                shopId: shopDoc._id,
-                newCount: storeStats.importCount
-              });
             } catch (error) {
-              console.error('[Import] Error updating counts:', error);
             }
-            results.success.push({ product: shopifyProduct, result: result.product });
-            console.log('[Import] Product added to success list:', {
-              shop,
-              productId: result.product.id,
-              successCount: results.success.length
-            });
-          } else {
-            results.failed.push({ product: shopifyProduct, error: result.errors || result });
-            console.error('[Import] Product added to failed list:', {
-              shop,
-              productTitle: shopifyProduct.title,
-              error: result.errors || result
-            });
           }
         } catch (error) {
           results.failed.push({ product, error: error.message });
-          console.error('[Import] Product processing error:', {
-            shop,
-            productTitle: product.title || product.Title,
-            error: error.message,
-            stack: error.stack
-          });
         }
-      });
-      await Promise.all(batchPromises);
+      }
     }
 
-    // Log final results
     // Log ImportExportEvent for successful imports
     try {
       if (results.success.length > 0) {
@@ -562,8 +449,10 @@ export const action = async ({ request }) => {
         });
       }
     } catch (eventErr) {
-      console.error('[Import] Failed to log ImportExportEvent:', eventErr);
     }
+
+    // Log all imported product data after processing
+
     return json({
       success: true,
       results: {
@@ -578,10 +467,9 @@ export const action = async ({ request }) => {
         limit,
         remainingImports: limit - (currentCount + results.success.length)
       },
-      message: `Successfully imported ${results.success.length} products!`
+      message: `Successfully imported products!`
     });
   } catch (error) {
-    console.error('[Import] Error:', error);
     return json({ 
       success: false, 
       error: error.message,

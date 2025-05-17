@@ -10,6 +10,7 @@ import { json } from "@remix-run/node";
 import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import "@shopify/polaris/build/esm/styles.css";
+import { ChakraProvider } from '@chakra-ui/react';
 
 export const loader = async () => {
   return json({
@@ -17,7 +18,7 @@ export const loader = async () => {
   });
 };
 
-// Helper to get host from URL
+// Helper to get host from URL on client side
 function getHost() {
   if (typeof window !== "undefined") {
     return new URLSearchParams(window.location.search).get("host");
@@ -28,9 +29,11 @@ function getHost() {
 export default function App() {
   const { SHOPIFY_API_KEY } = useLoaderData();
   const host = getHost();
-  const config = {
-    apiKey: SHOPIFY_API_KEY,
-    host,
+
+  // App Bridge config
+  const appBridgeConfig = {
+    apiKey: SHOPIFY_API_KEY || "",
+    host: host || "",
     forceRedirect: true,
   };
 
@@ -43,11 +46,14 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <PolarisAppProvider i18n={enTranslations}>
-          <Outlet />
-          <ScrollRestoration />
-          <Scripts />
-        </PolarisAppProvider>
+        <ChakraProvider resetCSS={false}>
+          {/* Shopify App Bridge Provider removed for v4.x+ */}
+          <PolarisAppProvider i18n={enTranslations}>
+            <Outlet />
+            <ScrollRestoration />
+            <Scripts />
+          </PolarisAppProvider>
+        </ChakraProvider>
       </body>
     </html>
   );

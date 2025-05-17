@@ -4,6 +4,10 @@ import { headers, mapProduct, mapToShopify } from '../csv-templates/woocommerce.
 import { Shop } from '../models/Shop';
 import StoreStats from '../models/StoreStats.js';
 import { requireActiveSubscription } from '../utils/subscriptionMiddleware';
+import { amazonParser } from '../utils/csvParsers/amazonParser.js';
+import { wixParser } from '../utils/csvParsers/wixParser.js';
+import { wooCommerceParser } from '../utils/csvParsers/wooCommerceParser.js';
+import { customParser } from '../utils/csvParsers/customParser.js';
 
 export const action = async ({ request }) => {
   const url = new URL(request.url);
@@ -158,58 +162,13 @@ export const action = async ({ request }) => {
   // Use the correct template
   let headersArr = [];
   let mapProductFn = null;
+  let csv = '';
   if (format === 'woocommerce') {
-    headersArr = headers;
-    mapProductFn = (shopifyProduct) => {
-      const variant = shopifyProduct.variants?.[0] || {};
-      const id = shopifyProduct.id?.split('/')?.pop() || '';
-      const inventory = variant.inventoryQuantity ?? '';
-      const images = (shopifyProduct.images || shopifyProduct.image ? [shopifyProduct.image] : [])
-        .map(img => img?.src || img?.url || img)
-        .filter(Boolean)
-        .join(',');
-      const categories = shopifyProduct.product_type || shopifyProduct.type || '';
-      const tags = Array.isArray(shopifyProduct.tags)
-        ? shopifyProduct.tags.join(',')
-        : (shopifyProduct.tags || '');
-      return [
-        id, // ID
-        'simple', // Type
-        variant.sku || shopifyProduct.handle, // SKU
-        shopifyProduct.title, // Name
-        (shopifyProduct.status || '').toLowerCase() === 'active' ? '1' : '0', // Published
-        '', // Is featured?
-        'visible', // Visibility in catalog
-        '', // Short description
-        shopifyProduct.body_html || shopifyProduct.description || '', // Description
-        '', '', // Date sale price starts/ends
-        'taxable', // Tax status
-        '', // Tax class
-        inventory, // In stock?
-        inventory, // Stock
-        '', // Backorders allowed?
-        '', // Sold individually?
-        '', // Weight (kg)
-        '', '', '', // Length, Width, Height (cm)
-        '', // Allow customer reviews?
-        '', // Purchase note
-        variant.compareAtPrice || '', // Sale price
-        variant.price || '', // Regular price
-        categories, // Categories
-        tags, // Tags
-        '', // Shipping class
-        images, // Images
-        '', '', // Download limit, Download expiry days
-        '', // Parent
-        '', // Grouped products
-        '', // Upsells
-        '', // Cross-sells
-        '', // External URL
-        '', // Button text
-        '', // Position
-        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''
-      ];
-    };
+    csv = await wooCommerceParser.exportToCSV(products);
+  } else if (format === 'amazon') {
+    csv = await amazonParser.exportToCSV(products);
+  } else if (format === 'wix') {
+    csv = await wixParser.exportToCSV(products);
   } else if (format === 'shopify') {
     headersArr = [
       'Handle',
@@ -259,18 +218,16 @@ export const action = async ({ request }) => {
       'Cost per item',
       'Status'
     ];
-
     mapProductFn = (shopifyProduct) => {
       const variant = shopifyProduct.variants?.[0] || {};
       const image = shopifyProduct.images?.[0] || {};
-      
       return [
         shopifyProduct.handle || '',
         shopifyProduct.title || '',
         shopifyProduct.body_html || '',
         shopifyProduct.vendor || '',
         '', // Product Category
-        shopifyProduct.productType || '',
+        shopifyProduct.productType || shopifyProduct.product_type || '',
         Array.isArray(shopifyProduct.tags) ? shopifyProduct.tags.join(',') : (shopifyProduct.tags || ''),
         shopifyProduct.status === 'active' ? 'TRUE' : 'FALSE',
         'Title', // Option1 Name
@@ -281,8 +238,8 @@ export const action = async ({ request }) => {
         '', // Option3 Value
         variant.sku || '',
         variant.grams || '',
-        variant.inventory_management || '',
-        variant.inventory_quantity || '',
+        'shopify', // Variant Inventory Tracker (force for Shopify)
+        variant.inventory_quantity || '', // Variant Inventory Qty
         variant.inventory_policy || '',
         variant.fulfillment_service || '',
         variant.price || '',
@@ -313,63 +270,23 @@ export const action = async ({ request }) => {
         shopifyProduct.status || 'active'
       ];
     };
+    let filteredProducts = products;
+    if (type === 'selected' && productIds.length > 0) {
+      const idSet = new Set(productIds.map(id => id.toString()));
+      filteredProducts = products.filter(p => idSet.has(p.id?.split('/')?.pop()));
+    }
+    const rows = [headersArr].concat(filteredProducts.map(mapProductFn));
+    csv = rows.map(row => row.map(cell => {
+      if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"') || cell.includes('\n'))) {
+        return '"' + cell.replace(/"/g, '""') + '"';
+      }
+      return cell;
+    }).join(',')).join('\r\n');
   } else if (format === 'customcsv') {
-    headersArr = [
-      'ID',
-      'Title',
-      'Description',
-      'SKU',
-      'Price',
-      'Compare At Price',
-      'Inventory',
-      'Status',
-      'Type',
-      'Vendor',
-      'Tags',
-      'Images',
-      'Handle'
-    ];
-
-    mapProductFn = (shopifyProduct) => {
-      const variant = shopifyProduct.variants?.[0] || {};
-      const images = (shopifyProduct.images || [])
-        .map(img => img?.src || img?.url || '')
-        .filter(Boolean)
-        .join(',');
-      
-      return [
-        shopifyProduct.id?.split('/')?.pop() || '',
-        shopifyProduct.title || '',
-        shopifyProduct.body_html || '',
-        variant.sku || '',
-        variant.price || '',
-        variant.compare_at_price || '',
-        variant.inventory_quantity || '',
-        shopifyProduct.status || '',
-        shopifyProduct.productType || '',
-        shopifyProduct.vendor || '',
-        Array.isArray(shopifyProduct.tags) ? shopifyProduct.tags.join(',') : (shopifyProduct.tags || ''),
-        images,
-        shopifyProduct.handle || ''
-      ];
-    };
+    csv = await customParser.exportToCSV(products);
   } else {
     return json({ success: false, error: 'Unsupported format' }, { status: 400 });
   }
-
-  // Generate CSV
-  let filteredProducts = products;
-  if (type === 'selected' && productIds.length > 0) {
-    const idSet = new Set(productIds.map(id => id.toString()));
-    filteredProducts = products.filter(p => idSet.has(p.id?.split('/')?.pop()));
-  }
-  const rows = [headersArr].concat(filteredProducts.map(mapProductFn));
-  const csv = rows.map(row => row.map(cell => {
-    if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"') || cell.includes('\n'))) {
-      return '"' + cell.replace(/"/g, '""') + '"';
-    }
-    return cell;
-  }).join(',')).join('\r\n');
 
   // After successful export, increment exportCount
   if (shopifySession?.shop && products.length > 0) {

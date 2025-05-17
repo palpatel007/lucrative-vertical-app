@@ -3,12 +3,12 @@
 client_id = "8895518da41bc492b0688f740c7c4e1b"
 name = "lucrative-vertical-app"
 handle = "lucrative-vertical-app-19"
-application_url = "https://thats-rebates-responsibility-how.trycloudflare.com"
+application_url = "https://tokyo-shall-discount-ob.trycloudflare.com"
 embedded = true
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
+include_config_on_deploy = true
 
 [webhooks]
 api_version = "2024-01"
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://thats-rebates-responsibility-how.trycloudflare.com/auth/callback",
-  "https://thats-rebates-responsibility-how.trycloudflare.com/auth/shopify/callback",
-  "https://thats-rebates-responsibility-how.trycloudflare.com/api/auth/callback"
+  "https://tokyo-shall-discount-ob.trycloudflare.com/auth/callback",
+  "https://tokyo-shall-discount-ob.trycloudflare.com/auth/shopify/callback",
+  "https://tokyo-shall-discount-ob.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

@@ -37,7 +37,8 @@ import { useNavigate } from 'react-router-dom';
 import shopifyIcon from '../assets/source-icons/shopify.png';
 import wooIcon from '../assets/source-icons/woo.png';
 import csvIcon from '../assets/source-icons/csv.png';
-
+import amazonIcon from '../assets/source-icons/amazon.png';
+import wixIcon from '../assets/source-icons/wix.png';
 // Placeholder SVG icon for download
 const DownloadIcon = () => (
   <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -50,12 +51,16 @@ const formatIcons = {
   shopify: shopifyIcon,
   woocommerce: wooIcon,
   customcsv: csvIcon,
+  amazon: amazonIcon || csvIcon,
+  wix: wixIcon || csvIcon,
 };
 
 const formatOptions = [
   { label: 'Shopify CSV', value: 'shopify', icon: formatIcons.shopify },
   { label: 'Custom CSV', value: 'customcsv', icon: formatIcons.customcsv },
   { label: 'WooCommerce CSV', value: 'woocommerce', icon: formatIcons.woocommerce },
+  { label: 'Amazon CSV', value: 'amazon', icon: formatIcons.amazon },
+  { label: 'Wix CSV', value: 'wix', icon: formatIcons.wix },
 ];
 
 const tabs = [
@@ -252,6 +257,13 @@ export default function ExportPage() {
   const [toastError, setToastError] = useState(false);
   const navigate = useNavigate();
   const [formatPopoverActive, setFormatPopoverActive] = useState(false);
+  const [exportSettings, setExportSettings] = useState({
+    includeVariations: true,
+    includeSpecifications: true,
+    includeFeatures: true,
+    includeShipping: true,
+    includeRatings: true,
+  });
 
   const sortOptions = [
     { label: 'Product title', value: 'title', directionLabel: 'A-Z' },
@@ -491,7 +503,8 @@ export default function ExportPage() {
         body: JSON.stringify({ 
           productIds: selectedResources,
           format: exportFormat,
-          type: exportType
+          type: exportType,
+          settings: exportSettings
         }),
         credentials: 'include',
       });
@@ -785,28 +798,46 @@ export default function ExportPage() {
         >
           <Modal.Section>
             <BlockStack gap="400">
-              <div>
-                <Text as="h3" variant="headingSm">Export</Text>
-                <ChoiceList
-                  title=""
-                  choices={[
-                    { label: 'All Product', value: 'all' },
-                    { label: 'Selected Product', value: 'selected' },
-                  ]}
-                  selected={[exportType]}
-                  onChange={([val]) => setExportType(val)}
-                />
-              </div>
-              <div>
-                <Text as="h3" variant="headingSm">Export as</Text>
-                <FormatSelect value={exportFormat} onChange={setExportFormat} options={formatOptions} active={formatPopoverActive} onToggle={toggleFormatPopover} onClose={() => setFormatPopoverActive(false)} />
-              </div>
-              <Text as="p" variant="bodySm">
-                Learn more about{' '}
-                <Link url="#" monochrome removeUnderline>
-                  export CSV
-                </Link>
+              <Text as="h2" variant="headingMd">
+                Select Export Format
               </Text>
+              <FormatSelect
+                value={exportFormat}
+                onChange={setExportFormat}
+                options={formatOptions}
+                active={formatPopoverActive}
+                onToggle={toggleFormatPopover}
+                onClose={() => setFormatPopoverActive(false)}
+              />
+              
+              {exportFormat === 'amazon' && (
+                <BlockStack gap="400">
+                  <Text as="h3" variant="headingSm">
+                    Amazon Export Settings
+                  </Text>
+                  <ChoiceList
+                    title="Include in Export"
+                    choices={[
+                      {label: 'Product Variations', value: 'includeVariations'},
+                      {label: 'Product Specifications', value: 'includeSpecifications'},
+                      {label: 'Product Features', value: 'includeFeatures'},
+                      {label: 'Shipping Information', value: 'includeShipping'},
+                      {label: 'Ratings and Reviews', value: 'includeRatings'},
+                    ]}
+                    selected={Object.entries(exportSettings)
+                      .filter(([_, value]) => value)
+                      .map(([key]) => key)}
+                    onChange={(selected) => {
+                      const newSettings = { ...exportSettings };
+                      Object.keys(exportSettings).forEach(key => {
+                        newSettings[key] = selected.includes(key);
+                      });
+                      setExportSettings(newSettings);
+                    }}
+                    allowMultiple
+                  />
+                </BlockStack>
+              )}
             </BlockStack>
           </Modal.Section>
         </Modal>

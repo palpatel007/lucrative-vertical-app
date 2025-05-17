@@ -64,8 +64,11 @@ export const loader = async ({ request }) => {
             );
         } else if (charge.status === 'declined') {
             // Update subscription status to cancelled
+            const shopRecord = await Shop.findOne({ shop: session.shop });
+            if (!shopRecord) throw new Error('Shop not found');
+
             await Subscription.findOneAndUpdate(
-                { shopId: shop },
+                { shopId: shopRecord._id },
                 { status: 'cancelled' },
                 { upsert: true }
             );

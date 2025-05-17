@@ -42,6 +42,8 @@ import { useLoaderData } from 'react-router-dom';
 import CountryFlag from 'react-country-flag';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
+import { BackgroundImport } from '../components/BackgroundImport';
+import { useToast } from '@chakra-ui/react';
 
 const tutorialData = [
   {
@@ -314,6 +316,8 @@ export default function Dashboard() {
   );
   const loaderData = typeof useLoaderData === 'function' ? useLoaderData() : {};
   const [stats, setStats] = useState({ totalProduct: 0, import: 0, export: 0 });
+  const [activeImports, setActiveImports] = useState([]);
+  const toast = useToast();
 
   useEffect(() => {
     let shop = new URLSearchParams(window.location.search).get('shop');
@@ -330,6 +334,65 @@ export default function Dashboard() {
         });
     }
   }, [loaderData.shop, selectedRange]);
+
+  useEffect(() => {
+    const loadActiveImports = async () => {
+      try {
+        const response = await fetch('/api/imports/active', {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await response.json();
+  
+        if (data.success) {
+          setActiveImports(data.imports);
+          // Only continue polling if there are active imports
+          if (data.imports.length === 0) {
+            return false; // Stop polling
+          }
+          return true; // Continue polling
+        } else {
+          console.error('[Dashboard] Error loading active imports:', data.error);
+          return false; // Stop polling on error
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error loading active imports:', error);
+        return false; // Stop polling on error
+      }
+    };
+
+    let shouldContinuePolling = true;
+    const pollInterval = 5000; // 5 seconds
+
+    const startPolling = async () => {
+      shouldContinuePolling = await loadActiveImports();
+      if (shouldContinuePolling) {
+        setTimeout(startPolling, pollInterval);
+      }
+    };
+
+    // Initial load
+    startPolling();
+
+    // Cleanup function
+    return () => {
+      shouldContinuePolling = false;
+    };
+  }, []);
+
+  const handleImportComplete = (importId, progress) => {
+    setActiveImports(prev => prev.filter(imp => imp._id !== importId));
+    // Refresh stats after import completes
+    const shop = new URLSearchParams(window.location.search).get('shop') || loaderData.shop;
+    if (shop) {
+      fetch(`/api/stats?shop=${encodeURIComponent(shop)}&range=${selectedRange}`)
+        .then(res => res.json())
+        .then(data => setStats(data));
+    }
+  };
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -542,6 +605,24 @@ export default function Dashboard() {
             </BlockStack>
           </Card>
         </Box>
+
+        {/* Active Imports Section */}
+        {activeImports.length > 0 && (
+          <Box marginTop="400">
+            <Text variant="headingMd" marginBottom="200">Active Imports</Text>
+            {activeImports.map(importData => (
+              <Box key={importData._id} marginBottom="200">
+                <BackgroundImport
+                  importId={importData._id}
+                  onComplete={(progress) => handleImportComplete(importData._id, progress)}
+                />
+                <Text variant="bodyMd">
+                  Importing {importData.processedProducts} of {importData.totalProducts} products
+                </Text>
+              </Box>
+            ))}
+          </Box>
+        )}
 
         {/* Help Section */ /* FAQ Section */}
         <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">

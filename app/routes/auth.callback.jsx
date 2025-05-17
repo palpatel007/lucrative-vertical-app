@@ -6,6 +6,9 @@ import { Subscription } from "../models/subscription";
 import { registerWebhooks } from '../utils/registerWebhooks.js';
 
 export const loader = async ({ request }) => {
+  console.log('[Auth Callback] Loader called. Request URL:', request.url);
+  const { session } = await authenticate.admin(request);
+  console.log('[Auth Callback] Session:', session);
   try {
     console.log('[Auth Callback] Starting authentication process...');
     
@@ -13,7 +16,6 @@ export const loader = async ({ request }) => {
     await connectDatabase();
     console.log('[Auth Callback] Database connected successfully');
 
-    const { session } = await authenticate.admin(request);
     console.log('[Auth Callback] Admin authenticated successfully', {
       shop: session.shop,
       accessToken: session.accessToken ? 'present' : 'missing'
@@ -69,13 +71,18 @@ export const loader = async ({ request }) => {
     // Register webhooks after successful installation
     await registerWebhooks(session.shop, session.accessToken);
 
-    // Redirect to the app's main page
-    return redirect('/app');
+    // Handle returnTo parameter for post-auth redirect
+    const url = new URL(request.url);
+    const returnTo = url.searchParams.get('returnTo') || '/app';
+
+    // Redirect to the specified returnTo path or the app's main page
+    return redirect(returnTo);
   } catch (error) {
     console.error('[Auth Callback] Error:', {
       message: error.message,
       name: error.name,
-      stack: error.stack
+      stack: error.stack,
+      session: typeof session !== 'undefined' ? session : null
     });
     return redirect('/auth');
   }

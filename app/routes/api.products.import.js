@@ -6,7 +6,7 @@ import { Shop } from '../models/Shop';
 import StoreStats from '../models/StoreStats';
 import { requireActiveSubscription } from '../utils/subscriptionMiddleware';
 import { checkPlanLimits, isPlatformAllowed } from '../utils/planLimits';
-import Subscription from '../models/subscription.js';
+import { Subscription } from '../models/subscription.js';
 
 // WooCommerce-to-Shopify field mapping
 // (now using mapToShopify from the template)
@@ -110,7 +110,13 @@ export const action = async ({ request }) => {
           product_type: product.product_type || '',
           tags: product.tags || '',
           images: product.images || [],
-          variants: product.variants || [],
+          variants: product.variants.map(variant => ({
+            ...variant,
+            inventory_management: 'shopify', // Enable inventory tracking
+            inventory_policy: variant.inventoryQuantity > 0 ? 'continue' : 'deny', // Set policy based on quantity
+            inventory_quantity: parseInt(variant.inventoryQuantity) || 0,
+            requires_shipping: true
+          })) || [],
         };
         const response = await admin.rest.resources.Product.create({
           session: admin.session,

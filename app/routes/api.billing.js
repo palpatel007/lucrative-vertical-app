@@ -1,14 +1,15 @@
 import { json, redirect } from '@remix-run/node';
-import { authenticate } from '../shopify.server.js';
-import { Subscription } from '../models/subscription.js';
+import { authenticate } from '../shopify.server';
 import { Shop } from '../models/Shop.js';
+import { Subscription } from '../models/subscription.js';
 import { PLANS } from '../config/plans.js';
 import { connectDatabase } from '../utils/database.js';
 
 export const loader = async ({ request }) => {
     let shop = null;
     try {
-        console.log('[Billing API] Starting billing API request');
+        console.log('[Billing API] Loader called. Request URL:', request.url);
+        console.log('[Billing API] Request headers:', Object.fromEntries(request.headers.entries()));
         
         // Ensure database connection
         try {
@@ -203,8 +204,12 @@ export const loader = async ({ request }) => {
 export const action = async ({ request }) => {
     let shop = null;
     try {
+        console.log('[Billing API] Action called. Request URL:', request.url);
+        console.log('[Billing API] Request headers:', Object.fromEntries(request.headers.entries()));
         const { session } = await authenticate.admin(request);
+        console.log('[Billing API] Session:', session);
         if (!session) {
+            console.warn('[Billing API] No valid session found. Redirecting to /auth.', { session });
             return redirect('/auth');
         }
 
@@ -245,6 +250,9 @@ export const action = async ({ request }) => {
         
         console.log('[Billing API] Creating recurring charge for plan:', planName);
         
+        const returnUrl = `${baseUrl}/app/billing?shop=${shopName}&plan=${planName}`;
+        console.log('[Billing API] Using return_url for charge:', returnUrl);
+        
         // Create recurring charge with Shopify
         const response = await fetch(`https://${session.shop}/admin/api/2024-01/recurring_application_charges.json`, {
             method: 'POST',
@@ -256,7 +264,7 @@ export const action = async ({ request }) => {
                 recurring_application_charge: {
                     name: planName,
                     price: plan.price,
-                    return_url: `${baseUrl}/app/billing/confirm?shop=${shopName}&plan=${planName}`,
+                    return_url: returnUrl,
                     test: process.env.NODE_ENV !== 'production',
                     trial_days: 0,
                     terms: 'Monthly subscription',
@@ -282,31 +290,12 @@ export const action = async ({ request }) => {
 
         console.log('[Billing API] Charge created successfully, redirecting to:', data.recurring_application_charge.confirmation_url);
 
-        // Store pending subscription
-        await Subscription.findOneAndUpdate(
-            { shopId: shopId },
-            {
-                shopifyChargeId: data.recurring_application_charge.id,
-                plan: planName,
-                status: 'pending',
-                test: process.env.NODE_ENV !== 'production',
-                lastBillingDate: null,
-                nextBillingDate: null,
-                billingOn: new Date(),
-                cancelledOn: null,
-                trialEndsOn: null,
-                balanceUsed: 0,
-                balanceRemaining: plan.price
-            },
-            { upsert: true }
-        );
-
         // Return the confirmation URL for the client to redirect to
         return json({ 
             confirmationUrl: data.recurring_application_charge.confirmation_url 
         });
     } catch (error) {
-        console.error('[Billing API] Error:', {
+        console.error('[Billing API] Error in action:', {
             message: error.message,
             stack: error.stack,
             shop: shop ? { id: shop._id, name: shop.shop } : null
