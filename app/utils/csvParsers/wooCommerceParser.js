@@ -130,33 +130,37 @@ export const wooCommerceParser = {
 
                     // Options handling
                     const options = [];
-
+                    let variantTitle = title;
                     // Handle attributes
                     for (let i = 1; i <= 3; i++) {
                         const attrName = record[`Attribute ${i} name`];
                         const attrValues = record[`Attribute ${i} value(s)`];
                         if (attrName && attrValues) {
+                            const values = attrValues.split(',').map(val => val.trim()).filter(Boolean);
                             options.push({
                                 name: attrName,
-                                values: attrValues.split(',').map(val => val.trim()).filter(Boolean)
+                                values
                             });
+                            if (values.length > 0 && !variantTitle) variantTitle = values[0];
                         }
                     }
-
                     // Handle color if present in meta
                     if (record['Meta: fb_color']) {
+                        const values = record['Meta: fb_color'].split(',').map(color => color.trim()).filter(Boolean);
                         options.push({
                             name: 'Color',
-                            values: record['Meta: fb_color'].split(',').map(color => color.trim()).filter(Boolean)
+                            values
                         });
+                        if (values.length > 0 && !variantTitle) variantTitle = values[0];
                     }
-
                     // Handle size if present in meta
                     if (record['Meta: fb_size']) {
+                        const values = record['Meta: fb_size'].split(',').map(size => size.trim()).filter(Boolean);
                         options.push({
                             name: 'Size',
-                            values: record['Meta: fb_size'].split(',').map(size => size.trim()).filter(Boolean)
+                            values
                         });
+                        if (values.length > 0 && !variantTitle) variantTitle = values[0];
                     }
 
                     return {
@@ -181,7 +185,7 @@ export const wooCommerceParser = {
                         collections: categories.map(cat => cat.join(' / ')),
                         variants: [
                             {
-                                title: 'Default',
+                                title: variantTitle || 'Default Title',
                                 price,
                                 compareAtPrice: finalCompareAtPrice,
                                 sku,

@@ -9,46 +9,65 @@ export const etsyParser = {
                 trim: true
             });
 
-            return records.map(record => ({
-                title: record['Title'],
-                description: record['Description'],
-                vendor: record['Shop Name'],
-                productType: record['Category'],
-                tags: record['Tags']?.split(',').map(tag => tag.trim()) || [],
-                price: parseFloat(record['Price']),
-                compareAtPrice: parseFloat(record['Sale Price']) || null,
-                sku: record['SKU'],
-                barcode: record['Barcode'],
-                weight: parseFloat(record['Weight']),
-                weightUnit: record['Weight Unit'] || 'KILOGRAMS',
-                inventoryQuantity: parseInt(record['Quantity'], 10) || 0,
-                inventoryPolicy: record['Quantity'] > 0 ? 'CONTINUE' : 'DENY',
-                images: record['Images']?.split(',').map(url => ({ src: url.trim() })) || [],
-                status: record['State']?.toLowerCase() === 'active' ? 'ACTIVE' : 'DRAFT',
-                options: [
+            return records.map(row => {
+                // Title/Description
+                const title = row['Title'] || 'Untitled';
+                const description = row['Description'] || '';
+
+                // Price
+                const price = parseFloat(row['Price'] || '0') || 0;
+
+                // SKU
+                const sku = row['SKU'] || '';
+
+                // Tags
+                const tags = (row['Tags'] || '').split(',').map(t => t.trim()).filter(Boolean);
+
+                // Images
+                let imageField = row['Image URL'] || row['Images'] || '';
+                let imageUrls = imageField.split(/[;,]/).map(url => url.trim()).filter(url => url && url !== 'null');
+                imageUrls = [...new Set(imageUrls)];
+                const images = imageUrls.map((src, i) => ({ src, position: i + 1 }));
+
+                // Inventory
+                const inventoryQuantity = parseInt(row['Quantity'] || '0') || 0;
+                const inventoryPolicy = inventoryQuantity > 0 ? 'CONTINUE' : 'DENY';
+
+                // Status (Etsy doesn't have a direct state in this export, so default to active)
+                const status = 'active';
+
+                // Options (Etsy sample doesn't have options, but keep for compatibility)
+                const options = [];
+                let variantTitle = sku;
+                // If you add option columns in the future, set variantTitle to the first option value
+
+                // Variants (one per product in this structure)
+                const variants = [
                     {
-                        name: record['Option Name 1'] || 'Size',
-                        values: record['Option Value 1']?.split(',').map(value => value.trim()) || []
-                    },
-                    {
-                        name: record['Option Name 2'] || 'Color',
-                        values: record['Option Value 2']?.split(',').map(value => value.trim()) || []
+                        title: variantTitle || 'Default Title',
+                        price,
+                        sku,
+                        inventoryQuantity,
+                        inventoryPolicy,
+                        inventory_quantity: inventoryQuantity,
+                        stock_quantity: inventoryQuantity
                     }
-                ],
-                variants: [
-                    {
-                        title: record['Variation Name'] || 'Default',
-                        price: parseFloat(record['Price']),
-                        compareAtPrice: parseFloat(record['Sale Price']) || null,
-                        sku: record['SKU'],
-                        barcode: record['Barcode'],
-                        weight: parseFloat(record['Weight']),
-                        weightUnit: record['Weight Unit'] || 'KILOGRAMS',
-                        inventoryQuantity: parseInt(record['Quantity'], 10) || 0,
-                        inventoryPolicy: record['Quantity'] > 0 ? 'CONTINUE' : 'DENY'
-                    }
-                ]
-            }));
+                ];
+
+                return {
+                    title,
+                    description,
+                    price,
+                    sku,
+                    tags,
+                    images,
+                    inventoryQuantity,
+                    inventoryPolicy,
+                    status,
+                    options,
+                    variants
+                };
+            });
         } catch (error) {
             console.error('Error parsing Etsy CSV:', error);
             throw new Error('Failed to parse Etsy CSV file');

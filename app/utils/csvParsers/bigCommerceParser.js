@@ -9,46 +9,88 @@ export const bigCommerceParser = {
                 trim: true
             });
 
-            return records.map(record => ({
-                title: record['Product Name'],
-                description: record['Product Description'],
-                vendor: record['Brand Name'],
-                productType: record['Category'],
-                tags: record['Search Keywords']?.split(',').map(tag => tag.trim()) || [],
-                price: parseFloat(record['Price']),
-                compareAtPrice: parseFloat(record['Sale Price']) || null,
-                sku: record['Product Code/SKU'],
-                barcode: record['UPC/EAN'],
-                weight: parseFloat(record['Weight']),
-                weightUnit: record['Weight Unit'] || 'KILOGRAMS',
-                inventoryQuantity: parseInt(record['Current Stock'], 10) || 0,
-                inventoryPolicy: record['Stock Level'] > 0 ? 'CONTINUE' : 'DENY',
-                images: record['Product Images']?.split(',').map(url => ({ src: url.trim() })) || [],
-                status: record['Product Status']?.toLowerCase() === 'active' ? 'ACTIVE' : 'DRAFT',
-                options: [
+            return records.map((row, idx) => {
+                // Title/Description
+                const title = row['Product Name'] || 'Untitled';
+                const description = row['Description'] || row['Product Description'] || '';
+
+                // Vendor/Brand
+                const vendor = row['Brand Name'] || '';
+
+                // Price
+                const price = parseFloat(row['Price'] || '0') || 0;
+
+                // SKU/Barcode
+                const sku = row['Product Code/SKU'] || '';
+                // No barcode in sample, but keep for compatibility
+                const barcode = row['UPC/EAN'] || row['Barcode'] || '';
+
+                // Weight
+                const weight = parseFloat(row['Weight'] || '0') || 0;
+                const weightUnit = (row['Weight Unit'] || 'kg').toLowerCase();
+
+                // Inventory
+                const inventoryQuantity = parseInt(row['Current Stock Level'] || row['Current Stock'] || '0') || 0;
+                const inventoryPolicy = inventoryQuantity > 0 ? 'CONTINUE' : 'DENY';
+
+                // Status/Visibility/Availability
+                const visible = (row['Visible'] || '').toString().toLowerCase();
+                const availability = (row['Availability'] || '').toString().toLowerCase();
+                const status = (visible === 'true' && availability === 'available') ? 'active' : 'draft';
+
+                // Images
+                let imageField = row['Product Image URL'] || row['Product Images'] || '';
+                let imageUrls = imageField.split(/[;,]/).map(url => url.trim()).filter(url => url && url !== 'null');
+                imageUrls = [...new Set(imageUrls)];
+                const images = imageUrls.map((src, i) => ({ src, position: i + 1 }));
+
+                // Tags/Collections (not in sample, but keep for compatibility)
+                const tags = (row['Tags'] || '').split(',').map(t => t.trim()).filter(Boolean);
+                const collections = (row['Categories'] || row['Category'] || '').split(',').map(c => c.trim()).filter(Boolean);
+
+                // Options (not in sample, but keep for compatibility)
+                const options = [];
+                let variantTitle = title;
+                if (row['Option1 Name'] && row['Option1 Value']) {
+                    options.push({ name: row['Option1 Name'], values: [row['Option1 Value']] });
+                    variantTitle = row['Option1 Value'];
+                }
+                // Variants (basic: one per product, can be expanded for more complex logic)
+                const variants = [
                     {
-                        name: record['Option Name 1'] || 'Size',
-                        values: record['Option Value 1']?.split(',').map(value => value.trim()) || []
-                    },
-                    {
-                        name: record['Option Name 2'] || 'Color',
-                        values: record['Option Value 2']?.split(',').map(value => value.trim()) || []
+                        title: variantTitle || 'Default Title',
+                        price,
+                        sku,
+                        barcode,
+                        weight,
+                        weightUnit,
+                        inventoryQuantity,
+                        inventoryPolicy,
+                        inventory_quantity: inventoryQuantity,
+                        stock_quantity: inventoryQuantity
                     }
-                ],
-                variants: [
-                    {
-                        title: record['Variant Name'] || 'Default',
-                        price: parseFloat(record['Price']),
-                        compareAtPrice: parseFloat(record['Sale Price']) || null,
-                        sku: record['Product Code/SKU'],
-                        barcode: record['UPC/EAN'],
-                        weight: parseFloat(record['Weight']),
-                        weightUnit: record['Weight Unit'] || 'KILOGRAMS',
-                        inventoryQuantity: parseInt(record['Current Stock'], 10) || 0,
-                        inventoryPolicy: record['Stock Level'] > 0 ? 'CONTINUE' : 'DENY'
-                    }
-                ]
-            }));
+                ];
+
+                return {
+                    title,
+                    description,
+                    vendor,
+                    productType: row['Category'] || '',
+                    tags,
+                    collections,
+                    price,
+                    sku,
+                    barcode,
+                    weight,
+                    weightUnit,
+                    inventoryQuantity,
+                    inventoryPolicy,
+                    images,
+                    status,
+                    options,
+                    variants
+                };
+            });
         } catch (error) {
             console.error('Error parsing BigCommerce CSV:', error);
             throw new Error('Failed to parse BigCommerce CSV file');

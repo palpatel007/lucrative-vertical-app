@@ -3,7 +3,7 @@
 client_id = "8895518da41bc492b0688f740c7c4e1b"
 name = "Bulk Data Upload"
 handle = "bulk-data-upload"
-application_url = "https://currently-niagara-colour-washing.trycloudflare.com"
+application_url = "https://tired-webster-chef-discussed.trycloudflare.com"
 embedded = true
 
 [build]
@@ -23,9 +23,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://currently-niagara-colour-washing.trycloudflare.com/auth/callback",
-  "https://currently-niagara-colour-washing.trycloudflare.com/auth/shopify/callback",
-  "https://currently-niagara-colour-washing.trycloudflare.com/api/auth/callback"
+  "https://tired-webster-chef-discussed.trycloudflare.com/auth/callback",
+  "https://tired-webster-chef-discussed.trycloudflare.com/auth/shopify/callback",
+  "https://tired-webster-chef-discussed.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

@@ -1,9 +1,26 @@
 export function buildShopifyProductFromBigCommerceCSV(product) {
   return {
-    title: product.Name || product.title || 'Untitled',
-    body_html: product.Description || '',
-    vendor: product.Brand || product.Vendor || '',
-    product_type: product.Type || '',
-    // variants and images will be set in the main logic
+    title: product.title || product.Name || 'Untitled',
+    body_html: product.description || product.Description || '',
+    vendor: product.vendor || product.Brand || '',
+    product_type: product.productType || product.Type || '',
+    tags: product.tags || [],
+    images: product.images || [],
+    collections: product.collections || [],
+    status: product.status || 'draft',
+    variants: (product.variants || []).map(variant => ({
+      title: variant.title,
+      price: variant.price,
+      compare_at_price: variant.compareAtPrice,
+      sku: variant.sku,
+      barcode: variant.barcode,
+      weight: variant.weight,
+      weight_unit: variant.weightUnit,
+      inventory_quantity: variant.inventory_quantity || variant.inventoryQuantity || 0,
+      inventory_policy: variant.inventoryPolicy,
+      inventory_management: "shopify",
+    })),
+    options: product.options || [],
+    metafields: product.metafields || [],
   };
 } 

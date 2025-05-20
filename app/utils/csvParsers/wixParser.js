@@ -67,6 +67,7 @@ export const wixParser = {
 
       // Options/Variants
       const options = [];
+      let variantTitle = title;
       for (let i = 1; i <= 6; i++) {
         const name = row[`productOptionName${i}`] || row[`Product Option Name ${i}`] || '';
         const type = row[`productOptionType${i}`] || row[`Product Option Type ${i}`] || '';
@@ -80,13 +81,13 @@ export const wixParser = {
             values = [desc.trim()];
           }
           options.push({ name, type, values });
+          if (values.length > 0 && !variantTitle) variantTitle = values[0];
         }
       }
-
       // Variants (basic: one per product, can be expanded for more complex logic)
       const variants = [
         {
-          title: row.variant_title || row.variantTitle || title,
+          title: (options[0] && options[0].values && options[0].values[0]) ? options[0].values[0] : title,
           price,
           compareAtPrice,
           sku,
