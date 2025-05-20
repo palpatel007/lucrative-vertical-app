@@ -1,0 +1,148 @@
+{
+  "welcome": "Bienvenue",
+  "logout": "Se déconnecter",
+  "language": "Langue",
+  "select_language": "Sélectionnez votre langue",
+  "profile": {
+    "title": "Bienvenue dans l'application!",
+    "owner": {
+      "name": "Samantha",
+      "description": "Samantha est la propriétaire de trois boutiques Shopify prospères. Commencez à explorer vos produits en découvrant comment elle trouve des produits à vendre."
+    }
+  },
+  "intro": {
+    "greeting": "👋",
+    "welcome_message": "Bienvenue à",
+    "app_name": "SBit - Importation de produits en masse"
+  },
+  "info": {
+    "status": "Gratuit",
+    "export_step": "Exporter"
+  },
+  "steps": [
+    {
+      "step_number": 1,
+      "emoji": "🚀",
+      "title": "Exportez votre fichier de produits en masse",
+      "description": "Téléchargez votre liste de produits (CSV) depuis n'importe quelle plateforme e-commerce comme Shopify, WooCommerce, Magento ou BigCommerce."
+    },
+    {
+      "step_number": 2,
+      "emoji": "🛒",
+      "title": "Sélectionnez votre plateforme source",
+      "description": "Choisissez la plateforme à partir de laquelle votre fichier de produits a été exporté. Cela nous aide à optimiser automatiquement les paramètres d'importation."
+    },
+    {
+      "step_number": 3,
+      "emoji": "⛵",
+      "title": "Téléchargez votre fichier de produits",
+      "description": "Téléchargez simplement le fichier exporté ici. Nous traiterons vos produits et les préparerons pour une migration transparente vers votre boutique Shopify."
+    }
+  ],
+  "platforms": [
+    {
+      "name": "Shopify",
+      "description": "Shopify est une plateforme e-commerce qui vous permet de créer une boutique en ligne pour vendre des produits."
+    },
+    {
+      "name": "WooCommerce",
+      "description": "WooCommerce est une plateforme e-commerce open source et personnalisable construite sur WordPress."
+    },
+    {
+      "name": "Magento",
+      "description": "Magento est une plateforme e-commerce open source écrite en PHP, avec des outils puissants pour gérer votre entreprise en ligne."
+    },
+    {
+      "name": "BigCommerce",
+      "description": "BigCommerce est une plateforme e-commerce SaaS leader conçue pour les entreprises à croissance rapide."
+    }
+  ],
+  "quick_tutorials": {
+    "title": "Tutoriels rapides",
+    "subheading": "Ceci est l'endroit où un sous-titre optionnel peut aller",
+    "tutorials": [
+      {
+        "title": "Commencer avec Shopify Polaris",
+        "description": "Apprenez à configurer votre première application Shopify en utilisant le système de design Polaris.",
+        "link_text": "Lire l'instruction"
+      },
+      {
+        "title": "Comment ajouter des champs personnalisés aux produits",
+        "description": "Ce tutoriel vous montre comment ajouter et gérer des champs personnalisés dans vos produits Shopify.",
+        "link_text": "Lire l'instruction"
+      }
+    ]
+  },
+  "support": {
+    "help_options": {
+      "email_support": {
+        "title": "Besoin d'aide ou d'importation?",
+        "description": "Obtenez un support par e-mail",
+        "info": "Envoyez-nous un e-mail et nous vous répondrons dès que possible."
+      },
+      "live_chat": {
+        "title": "Démarrer le chat en direct",
+        "description": "Parlez-nous directement via le chat en direct pour obtenir de l'aide avec votre question."
+      },
+      "help_docs": {
+        "title": "Docs d'aide",
+        "description": "Trouvez une solution à votre problème avec des documents et des tutoriels."
+      }
+    }
+  },
+  "faq": [
+    {
+      "question": "Qu'est-ce que l'application d'importation de produits en masse?",
+      "answer": "L'application d'importation de produits en masse vous permet d'importer et d'exporter facilement des produits sur plusieurs plateformes e-commerce, y compris Shopify, WooCommerce, Amazon, Walmart, Etsy, BigCommerce, et plus encore. Avec notre application, vous pouvez rationaliser votre gestion de produits et déplacer des données entre les plateformes sans effort."
+    },
+    {
+      "question": "Quelles plateformes sont prises en charge pour l'importation et l'exportation de produits?",
+      "answer": "Nous prenons en charge Shopify, WooCommerce, Magento, BigCommerce, AliExpress, Etsy, eBay et les plateformes CSV personnalisées."
+    },
+    {
+      "question": "Comment importer des produits dans ma boutique?",
+      "answer": "Exportez simplement votre liste de produits depuis n'importe quelle plateforme prise en charge et téléchargez le fichier CSV dans l'application. Les produits seront importés dans votre boutique Shopify."
+    },
+    {
+      "question": "Comment exporter des produits de Shopify vers d'autres plateformes?",
+      "answer": "Choisissez la plateforme vers laquelle vous souhaitez exporter, et l'application générera un fichier CSV prêt à être téléchargé."
+    },
+    {
+      "question": "Quels types de plans sont disponibles?",
+      "answer": "Nous proposons plusieurs plans : Gratuit, Plan Boutique, Plan Entrepôt, Plan Usine, Plan Franchise et Plan Citadelle."
+    },
+    {
+      "question": "Quelle est la différence entre les plans?",
+      "answer": "La différence réside dans le nombre de produits que vous pouvez importer/exporter, les plateformes prises en charge et les options de support prioritaire."
+    },
+    {
+      "question": "Ai-je un support si j'ai besoin d'aide avec l'application?",
+      "answer": "Oui, nous offrons un support par e-mail, chat en direct et docs d'aide."
+    },
+    {
+      "question": "Quelles informations dois-je fournir pour le support?",
+      "answer": "Vous devrez fournir votre nom, e-mail, code de collaboration, mot de passe du magasin (pour des raisons antérieures) et un message détaillé."
+    },
+    {
+      "question": "Que se passe-t-il si je dépasse les limites de produits de mon plan?",
+      "answer": "Si vous dépassez la limite, vous devrez passer à un plan supérieur."
+    },
+    {
+      "question": "Puis-je annuler mon abonnement à tout moment?",
+      "answer": "Oui, vous pouvez annuler votre abonnement à tout moment, et l'annulation prendra effet à la fin du cycle de facturation en cours."
+    },
+    {
+      "question": "Comment contacter le support?",
+      "answer": "Vous pouvez nous contacter par e-mail, chat en direct ou via les docs d'aide."
+    },
+    {
+      "question": "Qu'est-ce que l'option 'CSV personnalisé'?",
+      "answer": "L'option 'CSV personnalisé' vous permet d'importer et d'exporter des données produits en utilisant votre propre format de fichier CSV personnalisé."
+    }
+  ],
+  "feedback": {
+    "title": "Envisageriez-vous de nous laisser un avis?",
+    "message": "Nous aimerions avoir vos retours! Veuillez prendre un moment pour laisser un avis et nous aider à améliorer notre service.",
+    "link_text": "En savoir plus sur SBit - Importation de données en masse"
+  }
+} 

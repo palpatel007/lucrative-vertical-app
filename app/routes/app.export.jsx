@@ -3,8 +3,6 @@ import {
   Page,
   Text,
   Button,
-  Select,
-  Link,
   Badge,
   BlockStack,
   InlineStack,
@@ -31,7 +29,6 @@ import {
   Popover,
   ActionList,
 } from '@shopify/polaris';
-import '../styles/globals.css';
 import Footer from '../components/Footer';
 import { useNavigate } from 'react-router-dom';
 import shopifyIcon from '../assets/source-icons/shopify.png';
@@ -39,13 +36,6 @@ import wooIcon from '../assets/source-icons/woo.png';
 import csvIcon from '../assets/source-icons/csv.png';
 import amazonIcon from '../assets/source-icons/amazon.png';
 import wixIcon from '../assets/source-icons/wix.png';
-// Placeholder SVG icon for download
-const DownloadIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="48" height="48" rx="12" fill="#7B3FF2"/>
-    <path d="M24 14V34m0 0l-6-6m6 6l6-6" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
 
 const formatIcons = {
   shopify: shopifyIcon,
@@ -381,7 +371,9 @@ export default function ExportPage() {
         if (data.upgradeUrl) {
           handleCloseExportModal();
           alert(data.error || "You have reached your export limit. Please upgrade your plan.");
-          navigate('/app/billing');
+          setTimeout(() => {
+            navigate('/app/billing');
+          }, 2000);
           return;
         }
         // If error is 401, redirect to login
@@ -517,7 +509,9 @@ export default function ExportPage() {
         if (data.upgradeUrl) {
           console.log('[Export][Frontend] upgradeUrl:', data.upgradeUrl);
           showErrorToast(data.error || "You have reached your export limit. Please upgrade your plan.");
-          navigate('/app/billing');
+          setTimeout(() => {
+            navigate('/app/billing');
+          }, 2000);
           return;
         }
         if (response.status === 401) {
@@ -558,7 +552,9 @@ export default function ExportPage() {
         const shopId = new URLSearchParams(window.location.search).get('shop');
         if (shopId) {
           showErrorToast('Export limit exceeded. Please upgrade your plan.');
-          navigate('/app/billing');
+          setTimeout(() => {
+            navigate('/app/billing');
+          }, 2000);
           return;
         }
       }

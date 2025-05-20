@@ -1,11 +1,11 @@
 import { json, redirect } from '@remix-run/node';
-import { authenticate } from '../shopify.server';
+  import { authenticate } from '../shopify.server';
 import { Shop } from '../models/Shop.js';
-import { Subscription } from '../models/subscription.js';
+  import { Subscription } from '../models/subscription.js';
 import { PLANS } from '../config/plans.js';
 import { connectDatabase } from '../utils/database.js';
-
-export const loader = async ({ request }) => {
+  
+  export const loader = async ({ request }) => {
     let shop = null;
     try {
         console.log('[Billing API] Loader called. Request URL:', request.url);
@@ -109,61 +109,61 @@ export const loader = async ({ request }) => {
 
         // Define available plans
         const plans = [
-            {
-                name: 'FREE',
+      {
+        name: 'FREE',
                 price: 0,
-                features: [
-                    '20 Products Import & Export',
-                    'Shopify, WooCommerce',
-                    "Doesn't renew",
+        features: [
+          '20 Products Import & Export',
+          'Shopify, WooCommerce',
+          "Doesn't renew",
                 ]
-            },
-            {
-                name: 'SHOP PLAN',
+      },
+      {
+        name: 'SHOP PLAN',
                 price: 9.99,
-                features: [
-                    '100 Products Import & Export',
-                    'Shopify, WooCommerce, Wix, BigCommerce, Squarespace',
-                    'Renews monthly',
+        features: [
+          '100 Products Import & Export',
+          'Shopify, WooCommerce, Wix, BigCommerce, Squarespace',
+          'Renews monthly',
                 ]
-            },
-            {
-                name: 'WAREHOUSE PLAN',
+      },
+      {
+        name: 'WAREHOUSE PLAN',
                 price: 14.99,
-                features: [
-                    '300 Products Import & Export',
-                    'Shopify, WooCommerce, Squarespace, Amazon, Alibaba, Custom Sheet',
-                    'Renews monthly',
+        features: [
+          '300 Products Import & Export',
+          'Shopify, WooCommerce, Squarespace, Amazon, Alibaba, Custom Sheet',
+          'Renews monthly',
                 ]
-            },
-            {
-                name: 'FACTORY PLAN',
+      },
+      {
+        name: 'FACTORY PLAN',
                 price: 49.99,
-                features: [
-                    '1,000 Products Import & Export',
-                    'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy',
-                    'Renews monthly',
-                    'Priority support',
+        features: [
+          '1,000 Products Import & Export',
+          'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy',
+          'Renews monthly',
+          'Priority support',
                 ]
-            },
-            {
-                name: 'FRANCHISE PLAN',
+      },
+      {
+        name: 'FRANCHISE PLAN',
                 price: 129.99,
-                features: [
-                    '3,000 Products Import & Export',
-                    'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, Ebay',
-                    'Renews monthly',
-                    'Priority support',
+        features: [
+          '3,000 Products Import & Export',
+          'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, Ebay',
+          'Renews monthly',
+          'Priority support',
                 ]
-            },
-            {
-                name: 'CITADEL PLAN',
+      },
+      {
+        name: 'CITADEL PLAN',
                 price: 499.99,
-                features: [
-                    '50,000 Products Import & Export',
-                    'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, Ebay',
-                    'Renews monthly',
-                    'Priority support',
+        features: [
+          '50,000 Products Import & Export',
+          'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, Ebay',
+          'Renews monthly',
+          'Priority support',
                 ]
             }
         ];
@@ -337,4 +337,4 @@ export async function getSubscription(shopName) {
         limits: PLANS[subscription.plan],
         nextBillingDate: subscription.nextBillingDate,
     };
-}
+  }

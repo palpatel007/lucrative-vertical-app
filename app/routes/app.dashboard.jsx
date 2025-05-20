@@ -1,4 +1,5 @@
 import React, { useState, useCallback, Suspense, useEffect } from 'react';
+import '../styles/faq.css';
 import {
   Page,
   Card,
@@ -7,7 +8,6 @@ import {
   Button,
   Badge,
   Link,
-  Collapsible,
   ButtonGroup,
   InlineStack,
   BlockStack,
@@ -21,8 +21,8 @@ import {
   SkeletonDisplayText,
   SkeletonThumbnail,
   SkeletonPage,
+  Banner,
 } from '@shopify/polaris';
-import '../styles/globals.css';
 import Footer from '../components/Footer';
 import tutorialIcon from '../assets/tutorialIcon.png';
 import downloadIcon from '../assets/download.png';
@@ -31,19 +31,20 @@ import uploadIcon from '../assets/upload.png';
 import { PlayIcon } from '@shopify/polaris-icons';
 import { EmailIcon, ChatIcon, NoteIcon } from '@shopify/polaris-icons';
 import userPng from '../assets/user.png';
-import { ImportIcon, CheckSmallIcon, ExportIcon } from '@shopify/polaris-icons';
+import { CheckSmallIcon } from '@shopify/polaris-icons';
 import { CalendarIcon } from '@shopify/polaris-icons';
 import { json } from "@remix-run/node";
 import { connectDatabase } from '../utils/database';
 import { Shop } from '../models/Shop';
 import { Subscription } from '../models/subscription';
 import { authenticate } from "../shopify.server";
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData, useNavigate } from 'react-router-dom';
 import CountryFlag from 'react-country-flag';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { BackgroundImport } from '../components/BackgroundImport';
 import { useToast } from '@chakra-ui/react';
+import FaqSection from '../components/FaqSection';
 
 const tutorialData = [
   {
@@ -304,7 +305,7 @@ function DashboardSkeleton() {
 export default function Dashboard() {
   const { t } = useTranslation();
   const [selectedFaq, setSelectedFaq] = useState(null);
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [selectedLanguage, setSelectedLanguage] = useState(i18n.language || 'en');
   const [tutorialPage, setTutorialPage] = useState(1);
   const [selectedRange, setSelectedRange] = useState('7');
   const [isLoading, setIsLoading] = useState(true);
@@ -318,6 +319,9 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ totalProduct: 0, import: 0, export: 0 });
   const [activeImports, setActiveImports] = useState([]);
   const toast = useToast();
+  const [showBanner, setShowBanner] = useState(true);
+  const navigate = useNavigate();
+  const [showReviewBanner, setShowReviewBanner] = useState(true);
 
   useEffect(() => {
     let shop = new URLSearchParams(window.location.search).get('shop');
@@ -346,7 +350,7 @@ export default function Dashboard() {
           }
         });
         const data = await response.json();
-  
+
         if (data.success) {
           setActiveImports(data.imports);
           // Only continue polling if there are active imports
@@ -400,11 +404,54 @@ export default function Dashboard() {
 
   // HelpSection logic moved here
   const faqs = [
-    'Why does the option not appear on my product detail page?',
-    'Why does the option not appear on my product detail page?',
-    'Why does the option not appear on my product detail page?',
-    'Why does the option not appear on my product detail page?',
-    'Why does the option not appear on my product detail page?',
+    {
+      question: "What is the Bulk Product Uploading App?",
+      answer: "The Bulk Product Uploading App allows you to easily import and export products across multiple eCommerce platforms, including Shopify, WooCommerce, Amazon, Walmart, Etsy, BigCommerce, and more. With our app, you can streamline your product management process and move data between platforms effortlessly."
+    },
+    {
+      question: "Which platforms are supported for product import and export?",
+      answer: "Our app supports the following platforms for product import and export:\n\n- Shopify\n- Amazon Seller\n- Walmart Seller\n- eBay Seller\n- AliExpress\n- WooCommerce\n- Wix Seller\n- Alibaba\n- Etsy\n- Squarespace\n- BigCommerce\n- Custom CSV"
+    },
+    {
+      question: "How do I import products into my store?",
+      answer: "To import products, select your desired platform (e.g., Shopify, Amazon, etc.), upload your CSV file containing the product details, and the app will automatically import the products to your store."
+    },
+    {
+      question: "How do I export products from Shopify to other platforms?",
+      answer: "To export your products from Shopify, simply select the desired platform (e.g., Amazon, eBay, etc.) and choose the export option. Our app will generate a CSV file that you can upload to the chosen platform."
+    },
+    {
+      question: "What types of plans are available?",
+      answer: "We offer multiple subscription plans to fit your needs:\n\nFREE: $0/month for 20 products import & export (Shopify, WooCommerce). Does not renew.\nSHOP PLAN: $9.99/month for 100 products import & export (Shopify, WooCommerce, Wix, BigCommerce, Squarespace). Renews monthly.\nWAREHOUSE PLAN: $14.99/month for 300 products import & export (Shopify, WooCommerce, Squarespace, Amazon, Alibaba, Custom Sheet). Renews monthly.\nFACTORY PLAN: $49.99/month for 1,000 products import & export (Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy). Includes priority support. Renews monthly.\nFRANCHISE PLAN: $129.99/month for 3,000 products import & export (Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, eBay). Includes priority support. Renews monthly.\nCITADEL PLAN: $499.99/month for 50,000 products import & export (Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, eBay). Includes priority support. Renews monthly."
+    },
+    {
+      question: "What is the difference between the plans?",
+      answer: "The main differences between the plans are the number of products you can import/export and the platforms supported. Higher-tier plans allow for larger product imports and more platform integrations. Additionally, the Factory, Franchise, and Citadel plans include priority support."
+    },
+    {
+      question: "Do I get support if I need help with the app?",
+      answer: "Yes, we offer customer support through live chat and a support form. You can reach out for assistance with any issues you're facing. Our priority support is available for the Factory, Franchise, and Citadel plans."
+    },
+    {
+      question: "What information do I need to provide for support?",
+      answer: "For support, please provide your name, email ID, collaboration code, store password (for previous reasons), and a detailed message describing your issue."
+    },
+    {
+      question: "What happens if I exceed the product limits of my plan?",
+      answer: "If you exceed the product limits of your current plan, you will need to upgrade to a higher-tier plan that supports a larger number of products. You can easily upgrade your plan through your account settings."
+    },
+    {
+      question: "Can I cancel my subscription at any time?",
+      answer: "Yes, you can cancel your subscription at any time. If you are on a monthly-renewing plan, the cancellation will take effect after your current billing cycle ends."
+    },
+    {
+      question: "How do I contact support?",
+      answer: "You can contact support through our live chat feature or by filling out the support form available in the app. If you are using a Factory, Franchise, or Citadel plan, you'll have access to priority support."
+    } ,
+    {
+      question: "What is the 'Custom CSV' option?",
+      answer: "The 'Custom CSV' option allows you to import and export product data using your own custom CSV file format. This is ideal for businesses that have specific data structures or use multiple platforms outside of the standard integrations."
+    }
   ];
 
   // Utility function to format plan names
@@ -421,28 +468,30 @@ export default function Dashboard() {
     <Box background="bg-surface-secondary" minHeight="100vh" paddingBlockStart="600" paddingBlockEnd="600">
       <Page>
         {/* MediaCard Banner with image filling the left side */}
-        <MediaCard
-          title={t('welcome')}
-          primaryAction={{
-            content: 'Validate product',
-            onAction: () => { },
-          }}
-          secondaryAction={{
-            content: 'Learn more',
-            onAction: () => { },
-          }}
-          description="Samantha is the owner of 3 thriving Shopify stores. Start your product exploration by learning about how she finds products to sell."
-          popoverActions={[{ content: 'Dismiss', onAction: () => { } }]}
-          size="small"
-        >
-          <img
-            alt="Profile"
-            width="100%"
-            height="100%"
-            style={{ objectFit: 'cover', objectPosition: 'center' }}
-            src={userPng}
-          />
-        </MediaCard>
+        {showBanner && (
+          <MediaCard
+            title={t('welcome')}
+            primaryAction={{
+              content: 'Validate product',
+              onAction: () => { },
+            }}
+            secondaryAction={{
+              content: 'Learn more',
+              onAction: () => { },
+            }}
+            description="Samantha is the owner of 3 thriving Shopify stores. Start your product exploration by learning about how she finds products to sell."
+            popoverActions={[{ content: 'Dismiss', onAction: () => setShowBanner(false) }]}
+            size="small"
+          >
+            <img
+              alt="Profile"
+              width="100%"
+              height="100%"
+              style={{ objectFit: 'cover', objectPosition: 'center' }}
+              src={userPng}
+            />
+          </MediaCard>
+        )}
 
         {/* Welcome Bar */}
         <Box paddingBlockEnd="200" paddingBlockStart="200">
@@ -471,7 +520,7 @@ export default function Dashboard() {
           <SpacingBackground>
             <InlineGrid gap="400" columns={3}>
               <Placeholder height="320px" width="307px">
-                <img src={downloadIcon} alt="Export" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12, marginBottom: 16 }} />
+                <img src={downloadIcon} alt="Export" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12 }} />
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
                   <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>Step 1: </span>
                   <span role="img" aria-label="rocket">🚀</span>
@@ -485,7 +534,7 @@ export default function Dashboard() {
                 <Button variant="primary" fullWidth style={{ width: 288, height: 32 }}>Need Full Instructions</Button>
               </Placeholder>
               <Placeholder height="320px" width="307px">
-                <img src={codeIcon} alt="Select Platform" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12, marginBottom: 16 }} />
+                <img src={codeIcon} alt="Select Platform" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12 }} />
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
                   <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>Step 2: </span>
                   <span role="img" aria-label="cart">🛒</span>
@@ -496,10 +545,10 @@ export default function Dashboard() {
                     Choose the platform from which your product file was exported. This helps us optimize the import settings automatically.
                   </Text>
                 </div>
-                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }}>Select Platform</Button>
+                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }} onClick={() => navigate('/app/import')}>Select Platform</Button>
               </Placeholder>
               <Placeholder height="320px" width="100%">
-                <img src={uploadIcon} alt="Upload" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12, marginBottom: 16 }} />
+                <img src={uploadIcon} alt="Upload" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12 }} />
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
                   <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>Step 3: </span>
                   <span role="img" aria-label="ship">⛵</span>
@@ -510,7 +559,7 @@ export default function Dashboard() {
                     Simply upload the exported file here. We'll process your products and prepare them for seamless migration into your Shopify store.
                   </Text>
                 </div>
-                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }}>Upload File</Button>
+                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }} onClick={() => navigate('/app/import')}>Upload File</Button>
               </Placeholder>
             </InlineGrid>
           </SpacingBackground>
@@ -534,9 +583,15 @@ export default function Dashboard() {
                 gap: 48,
                 marginBottom: 8,
               }}>
-                <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, color: '#202223' }}>Total Product</div>
-                <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, color: '#202223' }}>Import</div>
-                <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, color: '#202223' }}>Export</div>
+                <div style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: '#202223' }}>
+                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>Total Product</span>
+                </div>
+                <div style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: '#202223' }}>
+                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>Import</span>
+                </div>
+                <div style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: '#202223' }}>
+                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>Export</span>
+                </div>
               </div>
               {/* Numbers Row */}
               <div style={{
@@ -545,9 +600,9 @@ export default function Dashboard() {
                 alignItems: 'center',
                 gap: 48,
               }}>
-                <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 20, color: '#202223' }}>{stats.totalProduct}</div>
-                <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 20, color: '#202223' }}>{stats.import}</div>
-                <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 20, color: '#202223' }}>{stats.export}</div>
+                <div style={{ flex: 1, textAlign: 'left', fontWeight: 700, fontSize: 20, color: '#202223' }}>{stats.totalProduct}</div>
+                <div style={{ flex: 1, textAlign: 'left', fontWeight: 700, fontSize: 20, color: '#202223' }}>{stats.import}</div>
+                <div style={{ flex: 1, textAlign: 'left', fontWeight: 700, fontSize: 20, color: '#202223' }}>{stats.export}</div>
               </div>
             </div>
           </Card>
@@ -635,7 +690,7 @@ export default function Dashboard() {
             <InlineGrid columns={3} gap="400" style={{ width: '100%' }}>
               <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
                 <Box marginInlineStart="200">
-                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }} onClick={e => { e.preventDefault(); navigate('/app/contact#help-section'); }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={EmailIcon} color="interactive" />
                       Get email support
@@ -648,7 +703,7 @@ export default function Dashboard() {
               </Card>
               <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
                 <Box marginInlineStart="200">
-                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }} onClick={e => { e.preventDefault(); if (window.$crisp) window.$crisp.push(["do", "chat:open"]); }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={ChatIcon} color="interactive" />
                       Start live chat
@@ -673,82 +728,56 @@ export default function Dashboard() {
                 </Box>
               </Card>
             </InlineGrid>
-            <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
-              <Box display="flex" paddingBlockStart="400">
-                {faqs.map((faq, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      marginBottom: 12,
-                      background: '#F6F6F7',
-                      borderRadius: 12,
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      overflow: 'hidden',
-                      transition: 'box-shadow 0.2s',
-                      boxShadow: selectedFaq === idx ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
-                    }}
-                  >
-                    <button
-                      onClick={() => setSelectedFaq(selectedFaq === idx ? null : idx)}
-                      aria-expanded={selectedFaq === idx}
-                      aria-controls={`faq-${idx}`}
-                      style={{
-                        width: '100%',
-                        background: 'none',
-                        border: 'none',
-                        outline: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '20px 24px',
-                        fontWeight: 500,
-                        fontSize: 15,
-                        cursor: 'pointer',
-                        color: '#202223',
-                        borderRadius: 12,
-                        transition: 'background 0.2s',
-                      }}
-                      onMouseOver={e => (e.currentTarget.style.background = '#EFEFEF')}
-                      onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <span style={{ flex: 1, textAlign: 'left' }}>{faq}</span>
-                      <span
-                        style={{
-                          transform: selectedFaq === idx ? 'rotate(90deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.2s',
-                          color: '#8C9196',
-                          fontSize: 20,
-                          marginLeft: 8,
-                        }}
-                      >
-                        &#8250;
-                      </span>
-                    </button>
-                    <Collapsible
-                      open={selectedFaq === idx}
-                      id={`faq-${idx}`}
-                      transition={{ duration: '400ms', timingFunction: 'ease-in-out' }}
-                    >
-                      <div
-                        style={{
-                          padding: '0 24px 20px 24px',
-                          color: '#6D7175',
-                          fontSize: 15,
-                          background: '#F6F6F7',
-                          borderRadius: '0 0 12px 12px',
-                          marginTop: 14,
-                        }}
-                      >
-                        Here is the answer to your question.
-                      </div>
-                    </Collapsible>
-                  </div>
-                ))}
-              </Box>
+            <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400" paddingBlockStart="400">
+              <FaqSection />
             </Box>
           </Card>
         </Box>
+        
+        {/* Review Request Banner */}
+        {showReviewBanner && (
+          <Box marginBlockEnd="400" marginBlockStart="400">
+            <Banner
+              title="Would you consider leaving us a review?"
+              status="info"
+              onDismiss={() => setShowReviewBanner(false)}
+            >
+              <p>We'd love to hear your feedback! Please take a moment to leave a review and help us improve our service.</p>
+              <Box paddingBlockStart="200">
+                <Button onClick={() => window.open('https://your-review-link.com', '_blank')}>Leave a review</Button>
+              </Box>
+            </Banner>
+          </Box>
+        )}
+
+        {/* my apps */}
+        {/* <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400" marginBlockStart="400">
+          <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
+            <BlockStack gap="200">
+              <Text variant="headingMd">My Apps</Text>
+              <Text color="subdued">Apps you have installed or created</Text>
+              <Box paddingBlockStart="400" />
+              {/* Placeholder for user's apps */}
+              {/* <InlineGrid columns={{ xs: 1, sm: 2 }} gap="400">
+                <Card padding="400" background="bg-surface" borderRadius="lg">
+                  <Box display="flex" alignItems="center" justifyContent="center" minHeight="120px">
+                    <Text color="subdued">You have not installed or created any apps yet.</Text>
+                  </Box>
+                </Card>
+              </InlineGrid>
+              <Box display="flex" alignItems="center" justifyContent="space-between" marginBlockStart="4">
+                <Pagination
+                  hasPrevious={tutorialPage > 1}
+                  onPrevious={() => setTutorialPage(tutorialPage - 1)}
+                  hasNext={tutorialPage < totalPages}
+                  onNext={() => setTutorialPage(tutorialPage + 1)}
+                  label={`${tutorialPage}/${totalPages}`}
+                />
+              </Box> */} 
+              {/* In the future, map over user's apps here */}
+            {/* </BlockStack>
+          </Card>
+        </Box> */}
         <Footer />
       </Page>
     </Box>
@@ -798,6 +827,12 @@ function LanguageDropdown({ selectedLanguage, setSelectedLanguage }) {
   const toggleActive = useCallback(() => setActive((active) => !active), []);
   const selected = LANGUAGE_OPTIONS.find(l => l.code === selectedLanguage) || LANGUAGE_OPTIONS[0];
 
+  const handleSelect = (lang) => {
+    setSelectedLanguage(lang.code);
+    i18n.changeLanguage(lang.code);
+    setActive(false);
+  };
+
   const activator = (
     <Button onClick={toggleActive} disclosure>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontWeight: 700 }}>
@@ -836,10 +871,7 @@ function LanguageDropdown({ selectedLanguage, setSelectedLanguage }) {
               </span>
             ),
             suffix: selectedLanguage === lang.code ? <Icon source={CheckSmallIcon} /> : undefined,
-            onAction: () => {
-              setSelectedLanguage(lang.code);
-              setActive(false);
-            }
+            onAction: () => handleSelect(lang)
           }))}
         />
       </div>

@@ -1,7 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-body, input, button, textarea {
-  font-family: 'Inter', sans-serif;
+:root {
+  --p-font-size-350: 1.125rem;
+  --p-font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'San Francisco', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --polaris-font-family: 'Polaris', 'Inter', -apple-system, BlinkMacSystemFont, 'San Francisco', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --polaris-font-size: 14px;
+}
+
+html, body, * {
+  font-family: var(--p-font-family-sans) !important;
 }
 
 /* Global styles */
@@ -49,4 +56,12 @@ body, input, button, textarea {
   color: #6D7175;
   font-size: 13px;
   margin-bottom: 8px;
+}
+
+.billing-features,
+.billing-card,
+.billing-features *,
+.billing-card * {
+  font-family: var(--polaris-font-family) !important;
+  font-size: var(--polaris-font-size) !important;
 }

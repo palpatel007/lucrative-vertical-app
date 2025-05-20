@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
 
 export const action = async ({ request }) => {
   console.log('[Contact API] Starting contact form submission');
-  
+
   try {
     // Get authenticated session
     console.log('[Contact API] Authenticating session');
@@ -31,10 +31,10 @@ export const action = async ({ request }) => {
     // Get form data
     console.log('[Contact API] Getting form data');
     const formData = await request.formData();
-    
+
     // Log all form data for debugging
     console.log('[Contact API] Raw form data:', Object.fromEntries(formData.entries()));
-    
+
     const name = formData.get('name');
     const email = formData.get('email');
     const code = formData.get('code');
@@ -98,7 +98,18 @@ export const action = async ({ request }) => {
           to: process.env.ADMIN_EMAIL,
           subject: `New Contact Form Submission from ${shop}`,
           html: `
-            <h2>New Contact Form Submission</h2>
+            <table width="100%" cellpadding="0" cellspacing="0" background-color: #f9f9f9; padding: 20px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 6px; padding: 30px; box-shadow: 0 0 10px rgba(0,0,0,0.05);">
+        <tr>
+          <td style="text-align: center; padding-bottom: 20px;">
+            <h2 style="margin: 0; color: #333;">📝 New Contact Form Submission</h2>
+            <p style="margin: 5px 0; color: #888;">from <strong>test-build-bulk.myshopify.com</strong></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size: 15px; color: #333;">
             <p><strong>Shop:</strong> ${shop}</p>
             <p><strong>Name:</strong> ${name}</p>
             <p><strong>Email:</strong> ${email}</p>
@@ -107,7 +118,19 @@ export const action = async ({ request }) => {
             ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
             ${page ? `<p><strong>Page:</strong> ${page}</p>` : ''}
             <p><strong>Message:</strong></p>
-            <p>${message}</p>
+            <p style="background-color: #f3f3f3; padding: 10px; border-radius: 4px;">${message}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding-top: 30px; text-align: center; font-size: 12px; color: #aaa;">
+            <p>&copy; ${new Date().getFullYear()} test-build-bulk.myshopify.com</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
           `
         });
         console.log('[Contact API] Email notification sent successfully');
@@ -120,17 +143,17 @@ export const action = async ({ request }) => {
       return json({ success: true, message: 'Message sent successfully!' });
     } catch (dbError) {
       console.error('[Contact API] Database error:', dbError);
-      return json({ 
-        success: false, 
-        error: 'Failed to save your message. Please try again.' 
+      return json({
+        success: false,
+        error: 'Failed to save your message. Please try again.'
       }, { status: 500 });
     }
 
   } catch (error) {
     console.error('[Contact API] Error processing contact form:', error);
-    return json({ 
-      success: false, 
-      error: 'Failed to process your message. Please try again.' 
+    return json({
+      success: false,
+      error: 'Failed to process your message. Please try again.'
     }, { status: 500 });
   }
 }; 

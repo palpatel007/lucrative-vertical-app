@@ -26,6 +26,7 @@ import { buildShopifyProductFromCustomCSV } from '../utils/productBuilders/custo
 import { buildShopifyProductFromAliExpressCSV } from '../utils/productBuilders/aliExpressBuilder.js';
 import { buildShopifyProductFromEtsyCSV } from '../utils/productBuilders/etsyBuilder.js';
 import { buildShopifyProductFromEbayCSV } from '../utils/productBuilders/ebayBuilder.js';
+import ImportIssue from '../models/ImportIssue.js';
 
 // Shopify API setup (replace with your actual credentials or use env vars)
 const shopify = shopifyApi({
@@ -57,6 +58,7 @@ export const action = async ({ request }) => {
     const fieldMapping = formData.get('fieldMapping');
     const shop = session.shop;
     const accessToken = session.accessToken;
+    const importId = formData.get('importId');
 
     // First find the shop to get its ID
     const shopDoc = await Shop.findOne({ shop });
@@ -280,12 +282,18 @@ export const action = async ({ request }) => {
               shopifyProduct = buildShopifyProductFromEbayCSV(product);
               break;
             default:
-              throw new Error('Invalid CSV format for builder');
+              results.failed.push({ product, error: 'Invalid CSV format for builder' });
+              continue;
           }
 
-          // Log skipped products if required fields are missing
-          if (!shopifyProduct.title || !shopifyProduct.variants || !shopifyProduct.variants.length) {
-            console.warn('[Skipped Product - Missing Required Fields]', JSON.stringify(shopifyProduct, null, 2));
+          // Universal validation for all formats
+          const requiredFields = ['title', 'variants'];
+          const missingFields = requiredFields.filter(f => !shopifyProduct[f] || (Array.isArray(shopifyProduct[f]) && !shopifyProduct[f].length));
+          if (missingFields.length > 0) {
+            results.failed.push({
+              product: shopifyProduct,
+              error: `Missing required fields: ${missingFields.join(', ')}`
+            });
             continue;
           }
 
@@ -300,18 +308,24 @@ export const action = async ({ request }) => {
             shopifyProduct.status = 'active';
           }
 
-          const response = await fetch(`https://${shopEnv}/admin/api/${LATEST_API_VERSION}/products.json`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Shopify-Access-Token': accessToken,
-            },
-            body: JSON.stringify({ product: shopifyProduct }),
-          });
+          let response, result;
+          try {
+            response = await fetch(`https://${shopEnv}/admin/api/${LATEST_API_VERSION}/products.json`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': accessToken,
+              },
+              body: JSON.stringify({ product: shopifyProduct }),
+            });
+            result = await response.json();
+          } catch (apiError) {
+            results.failed.push({ product: shopifyProduct, error: `API error: ${apiError.message}` });
+            continue;
+          }
 
           // Log the uploaded product payload and Shopify's response
           console.log('[Uploaded Product Payload]', JSON.stringify(shopifyProduct, null, 2));
-          const result = await response.json();
           console.log('[Shopify API Response]', JSON.stringify(result, null, 2));
 
           // Success check and push to results.success or results.failed
@@ -397,15 +411,15 @@ export const action = async ({ request }) => {
           }
 
           // Now upload images to the created product
-          if (product.images && Array.isArray(product.images)) {
-            for (const image of product.images) {
-              if (image.src) {
-                const shopifyImageUrl = await uploadImageToShopify(image.src);
-                if (shopifyImageUrl) {
-                }
-              }
-            }
-          }
+          // if (product.images && Array.isArray(product.images)) {
+          //   for (const image of product.images) {
+          //     if (image.src) {
+          //       const shopifyImageUrl = await uploadImageToShopify(image.src);
+          //       if (shopifyImageUrl) {
+          //       }
+          //     }
+          //   }
+          // }
 
           if (response.ok && (result.product || result.id || (result.products && result.products.length > 0))) {
             try {
@@ -451,6 +465,43 @@ export const action = async ({ request }) => {
     } catch (eventErr) {
     }
 
+    // After processing all products, store issues for failed/skipped products
+    if (importId) {
+      const failedIssues = results.failed.map(f => ({
+        importId,
+        productName: f.product?.title || 'Unknown',
+        details: typeof f.error === 'string' ? f.error : JSON.stringify(f.error)
+      }));
+      if (failedIssues.length > 0) {
+        await ImportIssue.insertMany(failedIssues);
+        // Update the issuesCount in ImportHistory
+        const ImportHistory = (await import('../models/ImportHistory.js')).default;
+        await ImportHistory.findByIdAndUpdate(importId, { issuesCount: failedIssues.length });
+      }
+    }
+
+    // After parsing, if no products are found, create issues for each row
+    if ((!products || products.length === 0) && importId) {
+      const csvRows = csvText.split('\n').slice(1); // skip header
+      const failedIssues = csvRows
+        .filter(row => row.trim() !== '')
+        .map((row, idx) => ({
+          importId,
+          productName: `Row ${idx + 2}`,
+          details: `Row could not be parsed or is missing required fields. Row content: ${row}`
+        }));
+      if (failedIssues.length > 0) {
+        await ImportIssue.insertMany(failedIssues);
+        const ImportHistory = (await import('../models/ImportHistory.js')).default;
+        await ImportHistory.findByIdAndUpdate(importId, { issuesCount: failedIssues.length });
+      }
+      return json({
+        success: false,
+        error: 'No valid products found in CSV. All rows failed validation.',
+        issues: failedIssues.length
+      });
+    }
+
     // Log all imported product data after processing
 
     return json({
@@ -470,15 +521,17 @@ export const action = async ({ request }) => {
       message: `Successfully imported products!`
     });
   } catch (error) {
-    return json({ 
-      success: false, 
-      error: error.message,
-      subscription: subscription ? {
-        plan: subscription.plan,
-        importCount: subscription.importCount,
-        limit: subscription.limits?.importLimit,
-        remainingImports: subscription.limits?.importLimit - subscription.importCount
-      } : null
-    }, { status: 500 });
+    // If importId exists, store a general failure issue
+    if (importId) {
+      const ImportIssue = (await import('../models/ImportIssue.js')).default;
+      await ImportIssue.create({
+        importId,
+        productName: 'Import Failed',
+        details: error.message || 'Unknown error during import.'
+      });
+      const ImportHistory = (await import('../models/ImportHistory.js')).default;
+      await ImportHistory.findByIdAndUpdate(importId, { issuesCount: 1 });
+    }
+    return json({ success: false, error: error.message || 'Import failed.' }, { status: 500 });
   }
 };

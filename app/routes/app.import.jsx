@@ -23,25 +23,28 @@ import {
   SkeletonBodyText,
   SkeletonDisplayText,
   SkeletonThumbnail,
-  Badge
+  Badge,
+  DataTable,
+  Modal,
+  Spinner
 } from '@shopify/polaris';
-import '../styles/globals.css';
 import Footer from '../components/Footer';
 import tutorialIcon from '../assets/tutorialIcon.png';
-import { PlayIcon } from '@shopify/polaris-icons';
+import { PlayIcon, ArrowLeftIcon } from '@shopify/polaris-icons';
 import { EmailIcon, ChatIcon, NoteIcon, CheckSmallIcon } from '@shopify/polaris-icons';
-import amazonIcon from '../assets/source-icons/amazon.png';
-import walmartIcon from '../assets/source-icons/walmart.png';
-import ebayIcon from '../assets/source-icons/ebay.png';
-import aliexpressIcon from '../assets/source-icons/aliexpres.png';
-import woocommerceIcon from '../assets/source-icons/woo.png';
-import wixIcon from '../assets/source-icons/wix.png';
-import alibabaIcon from '../assets/source-icons/alibaba.png';
-import etsyIcon from '../assets/source-icons/etsy.png';
-import squarespaceIcon from '../assets/source-icons/squarespace.png';
-import bigcommerceIcon from '../assets/source-icons/bigCommerce.png';
+import amazonIcon from '../assets/source-icons/amazon.svg';
+import walmartIcon from '../assets/source-icons/walmart.svg';
+import ebayIcon from '../assets/source-icons/ebay.svg';
+import aliexpressIcon from '../assets/source-icons/aliexpres.svg';
+import woocommerceIcon from '../assets/source-icons/woo.svg';
+import wixIcon from '../assets/source-icons/wix.svg';
+import alibabaIcon from '../assets/source-icons/alibaba.svg';
+import etsyIcon from '../assets/source-icons/etsy.svg';
+import squarespaceIcon from '../assets/source-icons/squarespace.svg';
+import bigcommerceIcon from '../assets/source-icons/bigCommerce.svg';
 import shopifyIcon from '../assets/source-icons/shopify.png';
 import csvIcon from '../assets/source-icons/csv.png';
+import FaqSection from '../components/FaqSection';
 
 const sourceOptions = [
   { label: 'Shopify', value: 'shopify' },
@@ -107,6 +110,101 @@ const sourceIcons = {
   bigcommerce: bigcommerceIcon,
   customcsv: csvIcon,
 };
+
+const PAGE_SIZE = 10;
+
+function ImportIssuesModal({ open, onClose, fileName, date, issues, issuesLoading }) {
+  const PAGE_SIZE = 5;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(issues.length / PAGE_SIZE);
+  const paginatedIssues = issues.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={
+        <Box display="flex" alignItems="center">
+          <Button plain icon={ArrowLeftIcon} onClick={onClose} />
+          <Text variant="headingMd" as="h2" marginInlineStart="200">
+            Import issues for {fileName}
+          </Text>
+        </Box>
+      }
+      large
+    >
+      <Modal.Section>
+        <Text color="subdued">{date}</Text>
+        <Box paddingBlockStart="400" />
+        <Badge status="new">Updated ({issues.length})</Badge>
+        <Box paddingBlockStart="400" />
+        {issuesLoading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+            <Spinner accessibilityLabel="Loading issues" size="large" />
+          </Box>
+        ) : (
+          <DataTable
+            columnContentTypes={['text', 'text']}
+            headings={['Product Name', 'Details']}
+            rows={paginatedIssues.map(issue => [issue.productName, issue.details])}
+          />
+        )}
+        <Box paddingBlockStart="400" display="flex" justifyContent="center">
+          <Pagination
+            hasPrevious={page > 1}
+            onPrevious={() => setPage(page - 1)}
+            hasNext={page < totalPages}
+            onNext={() => setPage(page + 1)}
+            label={`${page}/${totalPages}`}
+          />
+        </Box>
+      </Modal.Section>
+    </Modal>
+  );
+}
+
+function ImportHistoryTable({ importHistory, onViewIssues, historyLoading }) {
+  const [page, setPage] = useState(1);
+  const paginatedData = importHistory.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasData = importHistory.length > 0;
+  const totalPages = Math.ceil(importHistory.length / PAGE_SIZE);
+  return (
+    <Card>
+      <Box padding="400">
+        <Text variant="headingMd" as="h2">Import History</Text>
+      </Box>
+      {historyLoading ? (
+        <Spinner accessibilityLabel="Loading import history" size="large" />
+      ) : hasData ? (
+        <DataTable
+          columnContentTypes={['text', 'text', 'text', 'text', 'text', 'text']}
+          headings={['Source', 'Date', 'Data Type', 'Imported', 'Report', 'Status']}
+          rows={paginatedData.map((row) => [
+            row.fileName,
+            new Date(row.date).toLocaleString(),
+            row.dataType,
+            `${row.importedCount || 0} objects`,
+            row.issuesCount > 0 && row.status === 'complete' ? <Link url="#" onClick={e => { e.preventDefault(); onViewIssues(row); }}>View issues</Link> : '',
+            row.status === 'pending' || row.status === 'processing' ? <Spinner size="small" /> : <Badge tone={row.status === 'complete' ? 'success' : 'critical'}>{row.status.charAt(0).toUpperCase() + row.status.slice(1)}</Badge>,
+          ])}
+        />
+      ) : (
+        <Box padding="400" display="flex" justifyContent="center">
+          <Text color="subdued">No import history found.</Text>
+        </Box>
+      )}
+      <Box padding="400" display="flex" justifyContent="center">
+        <Pagination
+          hasPrevious={page > 1}
+          onPrevious={() => setPage(page - 1)}
+          hasNext={page * PAGE_SIZE < importHistory.length}
+          onNext={() => setPage(page + 1)}
+          label={`${page}/${totalPages}`}
+        />
+      </Box>
+    </Card>
+  );
+}
 
 function SourceDropdown({ selectedSource, setSelectedSource }) {
   const [active, setActive] = useState(false);
@@ -282,6 +380,12 @@ export default function Import() {
   const [toastError, setToastError] = useState(false);
   const [shopDomain, setShopDomain] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedImport, setSelectedImport] = useState(null);
+  const [importHistory, setImportHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [issues, setIssues] = useState([]);
+  const [issuesLoading, setIssuesLoading] = useState(false);
 
   // Get shop domain on component mount
   useEffect(() => {
@@ -352,84 +456,105 @@ export default function Import() {
     setToastActive(true);
   };
 
+  // Fetch import history on mount and after import
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('/api/imports?shop=' + shopDomain);
+      const data = await res.json();
+      setImportHistory(data);
+    } catch (err) {
+      setImportHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [shopDomain]);
+
+  useEffect(() => {
+    if (shopDomain) fetchHistory();
+  }, [shopDomain, fetchHistory]);
+
+  // Fetch issues for selected import
+  const handleViewIssues = useCallback(async (importRow) => {
+    setSelectedImport(importRow);
+    setIssuesLoading(true);
+    setModalOpen(true);
+    try {
+      const res = await fetch(`/api/imports/${importRow._id}/issues`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      setIssues(data);
+    } catch (err) {
+      setIssues([]);
+    } finally {
+      setIssuesLoading(false);
+    }
+  }, []);
+
+  // When starting import, create a new import history record
   const handleImportClick = async () => {
     if (!shopDomain) {
-      console.error('[Import] No shop domain available');
       showErrorToast('Please wait while we load your shop information...');
       return;
     }
-
     if (files.length === 0) {
-      console.log('[Import] No files selected');
       showErrorToast('Please select a file to import');
       return;
     }
-
-    console.log('[Import] Starting import process:', {
-      fileName: files[0].name,
-      fileSize: files[0].size,
-      format: selectedSource.value,
-      shop: shopDomain
-    });
-
     setImportLoading(true);
     setImportResult(null);
-
+    // Show background import toast
+    showSuccessToast('Your import is running in the background. You do not need to stay on this page.');
+    // Create import history record (pending)
+    let importRecord = null;
+    try {
+      const res = await fetch('/api/imports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop: shopDomain,
+          source: selectedSource.value,
+          fileName: files[0].name,
+          dataType: 'Products',
+          status: 'pending',
+        }),
+      });
+      importRecord = await res.json();
+      setImportHistory((prev) => [importRecord, ...prev]);
+    } catch (err) {
+      showErrorToast('Failed to create import history.');
+      setImportLoading(false);
+      return;
+    }
+    // --- Restore product import logic ---
+    let importSuccess = false;
+    let importedCount = 0;
+    let issuesCount = 0;
+    try {
     const formData = new FormData();
     formData.append('csv', files[0]);
     formData.append('format', selectedSource.value);
     formData.append('shop', shopDomain);
-
-    try {
-      console.log('[Import] Sending request to /api/csv-upload');
+    formData.append('importId', importRecord._id);
       const response = await fetch('/api/csv-upload', {
         method: 'POST',
         body: formData,
         credentials: 'include',
       });
-      console.log('[Import] Received response:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('[Import] Error response:', errorData);
-
-        if (response.status === 401) {
-          console.log('[Import] Not authenticated, redirecting to auth...');
-          const returnTo = `/app/import${window.location.search}`;
-          window.location.href = `/auth?returnTo=${encodeURIComponent(returnTo)}`;
-          return;
-        }
-
-        if (response.status === 403) {
-          if (errorData.upgradeUrl) {
-            showErrorToast(errorData.error || 'Please upgrade your plan to continue importing');
-            navigate('/app/billing');
-            return;
-          }
-          showErrorToast(errorData.error || 'Import quota exceeded. Please upgrade your plan.');
-          return;
-        }
-
-        throw new Error(errorData.error || 'Import request failed');
-      }
-
       const result = await response.json();
-      console.log('[Import] Response data:', result);
-
-      if (result.success) {
-        console.log('[Import] Import successful:', {
-          successful: result.results.successful,
-          failed: result.results.failed,
-          skipped: result.results.skipped
-        });
-        showSuccessToast(`Successfully imported ${result.results.successful} products!`);
+      if (response.ok && result.success) {
+        importSuccess = true;
+        importedCount = result.results?.successful || 0;
+        issuesCount = (result.results?.failed || 0) + (result.results?.skipped || 0);
+        showSuccessToast(`Successfully imported ${importedCount} products!`);
         setImportResult({
           success: true,
-          message: `Imported ${result.results.successful} products!`,
+          message: `Imported ${importedCount} products!`,
           details: result.results
         });
       } else {
-        console.error('[Import] Import failed:', result.error);
         showErrorToast(result.error || 'Import failed.');
         setImportResult({
           success: false,
@@ -438,17 +563,34 @@ export default function Import() {
         });
       }
     } catch (error) {
-      console.error('[Import] Error during import:', error);
       showErrorToast(error.message || 'Failed to import products. Please try again.');
       setImportResult({
         success: false,
         message: error.message || 'Failed to import products. Please try again.',
         error: error
       });
-    } finally {
-      console.log('[Import] Import process completed');
-      setImportLoading(false);
     }
+    // --- Update import history status ---
+    try {
+      await fetch(`/api/imports/${importRecord._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: importSuccess ? 'complete' : 'failed',
+          importedCount,
+          issuesCount
+        }),
+      });
+      fetchHistory(); // Refresh table
+    } catch (err) {
+      await fetch(`/api/imports/${importRecord._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'failed' }),
+      });
+      fetchHistory(); // Refresh table
+    }
+    setImportLoading(false);
   };
 
   if (isLoading) {
@@ -458,6 +600,17 @@ export default function Import() {
   return (
     <Frame>
       <Page>
+        
+        {selectedImport && (
+          <ImportIssuesModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            fileName={selectedImport.source}
+            date={selectedImport.date}
+            issues={issues}
+            issuesLoading={issuesLoading}
+          />
+        )}
         <Box paddingBlockStart="400" paddingBlockEnd="400" display="flex" justifyContent="center">
           <Card>
             <Box padding="600" minWidth="920px" maxWidth="700px">
@@ -522,10 +675,9 @@ export default function Import() {
             </Box>
           </Card>
         </Box>
-
-
+        <ImportHistoryTable importHistory={importHistory} onViewIssues={handleViewIssues} historyLoading={historyLoading} />
         {/* Tutorials */}
-        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400" paddingBlockStart="400">
           <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
             <BlockStack gap="200">
               <Text variant="headingMd">Quick tutorials</Text>
@@ -588,7 +740,7 @@ export default function Import() {
             <InlineGrid columns={3} gap="400" style={{ width: '100%' }}>
               <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
                 <Box marginInlineStart="200">
-                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }} onClick={e => { e.preventDefault(); navigate('/app/contact#help-section'); }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={EmailIcon} color="interactive" />
                       Get email support
@@ -601,7 +753,7 @@ export default function Import() {
               </Card>
               <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
                 <Box marginInlineStart="200">
-                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }} onClick={e => { e.preventDefault(); if (window.$crisp) window.$crisp.push(["do", "chat:open"]); }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={ChatIcon} color="interactive" />
                       Start live chat
@@ -626,83 +778,11 @@ export default function Import() {
                 </Box>
               </Card>
             </InlineGrid>
-            <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
-              <Box display="flex" paddingBlockStart="400">
-                {faqs.map((faq, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      marginBottom: 12,
-                      background: '#F6F6F7',
-                      borderRadius: 12,
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      overflow: 'hidden',
-                      transition: 'box-shadow 0.2s',
-                      boxShadow: selectedFaq === idx ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
-                    }}
-                  >
-                    <button
-                      onClick={() => setSelectedFaq(selectedFaq === idx ? null : idx)}
-                      aria-expanded={selectedFaq === idx}
-                      aria-controls={`faq-${idx}`}
-                      style={{
-                        width: '100%',
-                        background: 'none',
-                        border: 'none',
-                        outline: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '20px 24px',
-                        fontWeight: 500,
-                        fontSize: 15,
-                        cursor: 'pointer',
-                        color: '#202223',
-                        borderRadius: 12,
-                        transition: 'background 0.2s',
-                      }}
-                      onMouseOver={e => (e.currentTarget.style.background = '#EFEFEF')}
-                      onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <span style={{ flex: 1, textAlign: 'left' }}>{faq}</span>
-                      <span
-                        style={{
-                          transform: selectedFaq === idx ? 'rotate(90deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.2s',
-                          color: '#8C9196',
-                          fontSize: 20,
-                          marginLeft: 8,
-                        }}
-                      >
-                        &#8250;
-                      </span>
-                    </button>
-                    <Collapsible
-                      open={selectedFaq === idx}
-                      id={`faq-${idx}`}
-                      transition={{ duration: '400ms', timingFunction: 'ease-in-out' }}
-                    >
-                      <div
-                        style={{
-                          padding: '0 24px 20px 24px',
-                          color: '#6D7175',
-                          fontSize: 15,
-                          background: '#F6F6F7',
-                          borderRadius: '0 0 12px 12px',
-                          marginTop: 14,
-                        }}
-                      >
-                        Here is the answer to your question.
-                      </div>
-                    </Collapsible>
-                  </div>
-                ))}
-              </Box>
+            <Box display="flex" paddingBlockStart="400" >
+              <FaqSection />
             </Box>
           </Card>
         </Box>
-
         
         {toastActive && (
           <Toast content={toastMessage} error={toastError} onDismiss={() => setToastActive(false)} />

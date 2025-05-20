@@ -10,7 +10,7 @@ export default function Footer() {
         target="_blank"
         rel="noopener noreferrer"
       >
-        SBit - Bulk Product Upload
+        SBit - Bulk Data Upload
       </a>
     </div>
   );

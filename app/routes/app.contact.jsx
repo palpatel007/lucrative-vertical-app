@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import '../styles/globals.css';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Footer from '../components/Footer';
 import tutorialIcon from '../assets/tutorialIcon.png';
 import { PlayIcon } from '@shopify/polaris-icons';
@@ -7,6 +6,7 @@ import { EmailIcon, ChatIcon, NoteIcon } from '@shopify/polaris-icons';
 import { authenticate } from '../shopify.server.js';
 import { useActionData, useSubmit, useNavigate, useLoaderData } from '@remix-run/react';
 import { json } from '@remix-run/node';
+import FaqSection from '../components/FaqSection';
 
 import {
   Card,
@@ -221,6 +221,8 @@ export default function Contact() {
     tutorialPage * TUTORIALS_PER_PAGE
   );
 
+  const helpSectionRef = useRef(null);
+
   const handleChange = (field) => (value) => {
     setForm((f) => ({ ...f, [field]: value }));
   };
@@ -293,6 +295,13 @@ export default function Contact() {
       setIsLoading(false);
     }, 1000);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Scroll to help section if hash is present
+  useEffect(() => {
+    if (window.location.hash === '#help-section' && helpSectionRef.current) {
+      helpSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }, []);
 
   if (isLoading) {
@@ -488,7 +497,7 @@ export default function Contact() {
         </Box>
 
         {/* Help Section */ /* FAQ Section */}
-        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+        <Box ref={helpSectionRef} display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <Card paddingBlockStart="600" paddingBlockEnd="600" background="bg-surface" borderRadius="2xl">
             <div style={{ padding: '5px 0px 11px 2px' }}>
               <Text variant="headingMd" as="h2" fontWeight="bold">
@@ -511,7 +520,7 @@ export default function Contact() {
               </Card>
               <Card padding="400" border="base" background="bg-surface" borderRadius="lg" style={{ width: '100%', margin: 0 }}>
                 <Box marginInlineStart="200">
-                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
+                  <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }} onClick={e => { e.preventDefault(); if (window.$crisp) window.$crisp.push(["do", "chat:open"]); }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={ChatIcon} color="interactive" />
                       Start live chat
@@ -537,77 +546,8 @@ export default function Contact() {
               </Card>
             </InlineGrid>
             <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
-              <Box display="flex" paddingBlockStart="400">
-                {faqs.map((faq, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      marginBottom: 12,
-                      background: '#F6F6F7',
-                      borderRadius: 12,
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      overflow: 'hidden',
-                      transition: 'box-shadow 0.2s',
-                      boxShadow: selectedFaq === idx ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
-                    }}
-                  >
-                    <button
-                      onClick={() => setSelectedFaq(selectedFaq === idx ? null : idx)}
-                      aria-expanded={selectedFaq === idx}
-                      aria-controls={`faq-${idx}`}
-                      style={{
-                        width: '100%',
-                        background: 'none',
-                        border: 'none',
-                        outline: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '20px 24px',
-                        fontWeight: 500,
-                        fontSize: 15,
-                        cursor: 'pointer',
-                        color: '#202223',
-                        borderRadius: 12,
-                        transition: 'background 0.2s',
-                      }}
-                      onMouseOver={e => (e.currentTarget.style.background = '#EFEFEF')}
-                      onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <span style={{ flex: 1, textAlign: 'left' }}>{faq}</span>
-                      <span
-                        style={{
-                          transform: selectedFaq === idx ? 'rotate(90deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.2s',
-                          color: '#8C9196',
-                          fontSize: 20,
-                          marginLeft: 8,
-                        }}
-                      >
-                        &#8250;
-                      </span>
-                    </button>
-                    <Collapsible
-                      open={selectedFaq === idx}
-                      id={`faq-${idx}`}
-                      transition={{ duration: '400ms', timingFunction: 'ease-in-out' }}
-                    >
-                      <div
-                        style={{
-                          padding: '0 24px 20px 24px',
-                          color: '#6D7175',
-                          fontSize: 15,
-                          background: '#F6F6F7',
-                          borderRadius: '0 0 12px 12px',
-                          marginTop: 14,
-                        }}
-                      >
-                        Here is the answer to your question.
-                      </div>
-                    </Collapsible>
-                  </div>
-                ))}
+              <Box display="flex" paddingBlockStart="400" >
+                <FaqSection />
               </Box>
             </Box>
           </Card>

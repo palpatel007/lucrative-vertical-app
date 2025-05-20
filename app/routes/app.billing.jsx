@@ -3,8 +3,6 @@ import {
   Card,
   Text,
   Button,
-  Badge,
-  Link,
   InlineStack,
   BlockStack,
   Box,
@@ -571,71 +569,90 @@ export default function BillingPage() {
   }
 
   return (
-    <Frame>
-      <Page>
-        <Box paddingBlockStart="400">
-          <Box paddingBlockEnd="400">
-            <Text variant="headingLg" as="h2" fontWeight="bold" alignment="left" marginBlockEnd="400">
-              Pricing Plans
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Polaris:wght@400;500;600;700&display=swap');
+        .billing-features, .billing-card, .billing-features *, .billing-card * {
+          font-family: 'Polaris', 'Inter', -apple-system, BlinkMacSystemFont, 'San Francisco', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif !important;
+          font-size: 14px !important;
+        }
+      `}</style>
+      <Frame>
+        <Page>
+          <Box paddingBlockStart="400">
+            <Box paddingBlockEnd="400">
+              <Text variant="headingLg" as="h2" fontWeight="bold" alignment="left" marginBlockEnd="400">
+                Pricing Plans
+              </Text>
+            </Box>
+            <InlineGrid columns={3} rows={2} gap="400">
+              {plansList.map((plan, idx) => (
+                <Card key={idx} padding="400" background="bg-surface" borderRadius="2xl" style={{ minWidth: 300, maxWidth: 340, flex: 1 }}>
+                  <BlockStack gap="200" align="center">
+                    <img
+                      src={
+                        idx === 0 ? free :
+                          idx === 1 ? frame1 :
+                            idx === 2 ? group4 :
+                              idx === 3 ? frame2 :
+                                idx === 4 ? frame3 :
+                                  idx === 5 ? frame4 :
+                                    tutorialIcon
+                      }
+                      alt={plan.name}
+                      style={{ display: 'block', width: 48, height: 48, margin: '0 auto', marginBottom: 12 }}
+                    />
+                    {plan.badge && <Box marginBlockEnd="200">{plan.badge}</Box>}
+                    <Box>
+                      <Text variant="headingMd" fontWeight="bold" alignment="center">{plan.name}</Text>
+                      <Text variant="headingLg" fontWeight="bold" alignment="center">{plan.price}<span style={{ fontWeight: 400, fontSize: 18 }}>{plan.period}</span></Text>
+                    </Box>
+                    {plan.button}
+                    <ul style={{ marginTop: 16, textAlign: 'left', paddingLeft: 0, listStyle: 'none' }}>
+                      {plan.features.map((feature, i) => (
+                        <li
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            marginBottom: 8,
+                          }}
+                        >
+                          <span style={{ width: 24, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                            <Icon source={CheckCircleIcon} tone="success" />
+                          </span>
+                          <Text
+                            as="span"
+                            variant="bodyMd"
+                            style={{
+                              fontSize: 14,
+                              wordBreak: 'break-word',
+                              marginLeft: 8,
+                            }}
+                          >
+                            {feature}
+                          </Text>
+                        </li>
+                      ))}
+                    </ul>
+                  </BlockStack>
+                </Card>
+              ))}
+            </InlineGrid>
+          </Box>
+          <Footer />
+        </Page>
+        {toastActive && (
+          <Toast content={toastMessage} onDismiss={toggleToast} />
+        )}
+        {cookieWarning && (
+          <Box padding="400" background="bg-warning-subdued">
+            <Text color="critical">
+              Warning: Cookies are disabled or blocked. Please enable third-party cookies in your browser and ensure you are not using a tunnel that blocks cookies (like some Cloudflare/ngrok setups). Shopify embedded apps require cookies to work correctly.
             </Text>
           </Box>
-          <InlineGrid columns={3} rows={2} gap="400">
-            {plansList.map((plan, idx) => (
-              <Card key={idx} padding="400" background="bg-surface" borderRadius="2xl" style={{ minWidth: 300, maxWidth: 340, flex: 1 }}>
-                <BlockStack gap="200" align="center">
-                  <img
-                    src={
-                      idx === 0 ? free :
-                        idx === 1 ? frame1 :
-                          idx === 2 ? group4 :
-                            idx === 3 ? frame2 :
-                              idx === 4 ? frame3 :
-                                idx === 5 ? frame4 :
-                                  tutorialIcon
-                    }
-                    alt={plan.name}
-                    style={{ display: 'block', width: 48, height: 48, margin: '0 auto', marginBottom: 12 }}
-                  />
-                  {plan.badge && <Box marginBlockEnd="200">{plan.badge}</Box>}
-                  <Box>
-                    <Text variant="headingMd" fontWeight="bold" alignment="center">{plan.name}</Text>
-                    <Text variant="headingLg" fontWeight="bold" alignment="center">{plan.price}<span style={{ fontWeight: 400, fontSize: 18 }}>{plan.period}</span></Text>
-                  </Box>
-                  {plan.button}
-                  <ul style={{ marginTop: 16, textAlign: 'left', paddingLeft: 0, listStyle: 'none' }}>
-                    {plan.features.map((feature, i) => (
-                      <li
-                        key={i}
-                        style={{
-                          fontSize: 15,
-                          marginBottom: 8,
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 8,
-                        }}
-                      >
-                        <Icon source={CheckCircleIcon} tone="success" />
-                        <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', flex: 1 }}>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </BlockStack>
-              </Card>
-            ))}
-          </InlineGrid>
-        </Box>
-        <Footer />
-      </Page>
-      {toastActive && (
-        <Toast content={toastMessage} onDismiss={toggleToast} />
-      )}
-      {cookieWarning && (
-        <Box padding="400" background="bg-warning-subdued">
-          <Text color="critical">
-            Warning: Cookies are disabled or blocked. Please enable third-party cookies in your browser and ensure you are not using a tunnel that blocks cookies (like some Cloudflare/ngrok setups). Shopify embedded apps require cookies to work correctly.
-          </Text>
-        </Box>
-      )}
-    </Frame>
+        )}
+      </Frame>
+    </>
   );
 }
