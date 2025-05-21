@@ -13,11 +13,14 @@ if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_API_SECRET) {
   throw new Error('Missing required Shopify API credentials');
 }
 
+// Log the active SCOPES at startup for debugging
+console.log('Active SCOPES at startup:', process.env.SCOPES);
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
   apiVersion: ApiVersion.April24,
-  scopes: process.env.SCOPES?.split(",") || ['write_products'],
+  scopes: process.env.SCOPES?.split(","),
   appUrl: shopifyConfig.appUrl,
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),

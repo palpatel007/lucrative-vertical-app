@@ -1,4 +1,4 @@
-export function buildShopifyProductFromEbayCSV(product) {
+export function buildShopifyProductFromWalmartCSV(product) {
   // Always include a default variant and options for simple products
   const variant = {
     option1: 'Default',
@@ -9,9 +9,10 @@ export function buildShopifyProductFromEbayCSV(product) {
     inventory_management: 'shopify',
   };
   return {
-    title: product.title || product.Title || 'Untitled',
-    body_html: product.description || product.Description || '',
-    product_type: product.productType || product.Category || '',
+    title: product.title || 'Untitled',
+    body_html: product.description || '',
+    product_type: product.productType || '',
+    vendor: product.vendor || '',
     tags: product.tags || [],
     images: product.images || [],
     collections: product.collections || [],

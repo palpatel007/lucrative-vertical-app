@@ -7,6 +7,7 @@ import StoreStats from '../models/StoreStats';
 import { requireActiveSubscription } from '../utils/subscriptionMiddleware';
 import { checkPlanLimits, isPlatformAllowed } from '../utils/planLimits';
 import { Subscription } from '../models/subscription.js';
+import { convertMetafieldsObjectToArray } from '../utils/productBuilders/shopifyBuilder.js';
 
 // WooCommerce-to-Shopify field mapping
 // (now using mapToShopify from the template)
@@ -30,6 +31,16 @@ function mapShopifyToShopify(row) {
       weight: row['Variant Weight'] || '',
     }],
   };
+}
+
+function isValidMetafieldArray(arr) {
+  return Array.isArray(arr) && arr.length > 0 && arr.every(mf =>
+    typeof mf === 'object' &&
+    typeof mf.namespace === 'string' &&
+    typeof mf.key === 'string' &&
+    'value' in mf &&
+    typeof mf.type === 'string'
+  );
 }
 
 export const action = async ({ request }) => {
@@ -118,10 +129,37 @@ export const action = async ({ request }) => {
             requires_shipping: true
           })) || [],
         };
+        // Always assign and sanitize metafields from the original product
+        let metafieldsToCreate = [];
+        if ('metafields' in product) {
+          if (Array.isArray(product.metafields)) {
+            metafieldsToCreate = product.metafields;
+          } else {
+            metafieldsToCreate = convertMetafieldsObjectToArray(product.metafields);
+          }
+        }
+        // Debug: print the final product object (without metafields)
+        console.log('[Shopify Import] Final product object (no metafields):', JSON.stringify(shopifyProduct, null, 2));
+        // Create the product (without metafields)
         const response = await admin.rest.resources.Product.create({
           session: admin.session,
           ...shopifyProduct,
         });
+        // After product creation, create metafields if any
+        if (response && response.id && metafieldsToCreate.length > 0) {
+          for (const mf of metafieldsToCreate) {
+            try {
+              await admin.rest.request({
+                path: `/products/${response.id}/metafields`,
+                method: 'POST',
+                data: { metafield: mf },
+                session: admin.session
+              });
+            } catch (err) {
+              console.error(`[Shopify Import] Failed to create metafield for product ${response.id}:`, mf, err);
+            }
+          }
+        }
         if (response && response.id) {
           results.success.push({ product: shopifyProduct, result: response });
         } else {

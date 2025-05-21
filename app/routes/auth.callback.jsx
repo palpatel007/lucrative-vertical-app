@@ -4,6 +4,7 @@ import { connectDatabase } from "../utils/database";
 import { Shop } from "../models/Shop";
 import { Subscription } from "../models/subscription";
 import { registerWebhooks } from '../utils/registerWebhooks.js';
+import prisma from '../db.server.js';
 
 export const loader = async ({ request }) => {
   console.log('[Auth Callback] Loader called. Request URL:', request.url);
@@ -16,6 +17,14 @@ export const loader = async ({ request }) => {
     await connectDatabase();
     console.log('[Auth Callback] Database connected successfully');
 
+    // Destroy old sessions for this shop before proceeding
+    try {
+      const deleted = await prisma.session.deleteMany({ where: { shop: session.shop } });
+      console.log(`[Auth Callback] Deleted ${deleted.count} old session(s) for shop: ${session.shop}`);
+    } catch (err) {
+      console.error('[Auth Callback] Error deleting old sessions:', err);
+    }
+
     console.log('[Auth Callback] Admin authenticated successfully', {
       shop: session.shop,
       accessToken: session.accessToken ? 'present' : 'missing'
@@ -23,6 +32,7 @@ export const loader = async ({ request }) => {
 
     // Ensure shop document exists
     let shop = await Shop.findOne({ shop: session.shop });
+    console.log('[Auth Callback] Shop found:', shop);
     
     if (!shop) {
       console.log('[Auth Callback] Creating new shop document...');
@@ -50,6 +60,7 @@ export const loader = async ({ request }) => {
 
     // Ensure subscription exists
     let subscription = await Subscription.findOne({ shopId: shop._id });
+    console.log('[Auth Callback] Subscription found:', subscription);
     
     if (!subscription) {
       console.log('[Auth Callback] Creating free subscription...');
@@ -69,7 +80,9 @@ export const loader = async ({ request }) => {
     }
 
     // Register webhooks after successful installation
+    console.log('[Auth Callback] About to register webhooks for', session.shop, 'with accessToken:', session.accessToken);
     await registerWebhooks(session.shop, session.accessToken);
+    console.log('[Auth Callback] Finished registering webhooks for', session.shop);
 
     // Handle returnTo parameter for post-auth redirect
     const url = new URL(request.url);

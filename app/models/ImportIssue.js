@@ -7,5 +7,5 @@ const ImportIssueSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-const ImportIssue = mongoose.model('ImportIssue', ImportIssueSchema);
+const ImportIssue =  mongoose.model('ImportIssue', ImportIssueSchema);
 export default ImportIssue; 

@@ -1,4 +1,5 @@
 import { parse } from 'csv-parse/sync';
+import { stringify } from 'csv-stringify';
 
 export const alibabaParser = {
     async parseCSV(csvText) {
@@ -98,5 +99,46 @@ export const alibabaParser = {
             console.error('Error parsing Alibaba CSV:', error);
             throw new Error('Failed to parse Alibaba CSV file');
         }
+    },
+    async exportToCSV(products) {
+        const columns = [
+            'Product ID',
+            'Product Name',
+            'Category',
+            'Product Description',
+            'Model Number',
+            'Brand Name',
+            'Price (USD)',
+            'MOQ (Minimum Order Quantity)',
+            'Supply Ability (per Month)',
+            'Packaging Details',
+            'Delivery Time',
+            'FOB Port',
+            'Main Image URL'
+        ];
+        const records = products.map(product => {
+            const variant = Array.isArray(product.variants) && product.variants[0] ? product.variants[0] : {};
+            return {
+                'Product ID': product.productId || '',
+                'Product Name': product.title || '',
+                'Category': product.productType || '',
+                'Product Description': product.description || '',
+                'Model Number': product.sku || variant.sku || '',
+                'Brand Name': product.vendor || '',
+                'Price (USD)': variant.price || product.price || '',
+                'MOQ (Minimum Order Quantity)': product.moq || '',
+                'Supply Ability (per Month)': product.supplyAbility || '',
+                'Packaging Details': product.packagingDetails || '',
+                'Delivery Time': product.deliveryTime || '',
+                'FOB Port': product.fobPort || '',
+                'Main Image URL': Array.isArray(product.images) ? product.images.map(img => img.src).join(',') : '',
+            };
+        });
+        return new Promise((resolve, reject) => {
+            stringify(records, { header: true, columns }, (err, output) => {
+                if (err) reject(err);
+                else resolve(output);
+            });
+        });
     }
 }; 

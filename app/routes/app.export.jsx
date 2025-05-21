@@ -36,6 +36,14 @@ import wooIcon from '../assets/source-icons/woo.png';
 import csvIcon from '../assets/source-icons/csv.png';
 import amazonIcon from '../assets/source-icons/amazon.png';
 import wixIcon from '../assets/source-icons/wix.png';
+import bigCommerceIcon from '../assets/source-icons/bigCommerce.png';
+import squarespaceIcon from '../assets/source-icons/squarespace.png';
+import alibabaIcon from '../assets/source-icons/alibaba.png';
+import aliexpresIcon from '../assets/source-icons/aliexpres.svg';
+import etsyIcon from '../assets/source-icons/etsy.png';
+import ebayIcon from '../assets/source-icons/ebay.png';
+import walmartIcon from '../assets/source-icons/walmart.png';
+import { ImageIcon } from '@shopify/polaris-icons';
 
 const formatIcons = {
   shopify: shopifyIcon,
@@ -43,6 +51,13 @@ const formatIcons = {
   customcsv: csvIcon,
   amazon: amazonIcon || csvIcon,
   wix: wixIcon || csvIcon,
+  bigcommerce: bigCommerceIcon || csvIcon,
+  squarespace: squarespaceIcon || csvIcon,
+  alibaba: alibabaIcon || csvIcon,
+  aliexpress: aliexpresIcon || csvIcon,
+  etsy: etsyIcon || csvIcon,
+  ebay: ebayIcon || csvIcon,
+  walmart: walmartIcon || csvIcon,
 };
 
 const formatOptions = [
@@ -51,6 +66,13 @@ const formatOptions = [
   { label: 'WooCommerce CSV', value: 'woocommerce', icon: formatIcons.woocommerce },
   { label: 'Amazon CSV', value: 'amazon', icon: formatIcons.amazon },
   { label: 'Wix CSV', value: 'wix', icon: formatIcons.wix },
+  { label: 'BigCommerce CSV', value: 'bigcommerce', icon: formatIcons.bigcommerce },
+  { label: 'Squarespace CSV', value: 'squarespace', icon: formatIcons.squarespace },
+  { label: 'Alibaba CSV', value: 'alibaba', icon: formatIcons.alibaba },
+  { label: 'AliExpress CSV', value: 'aliexpress', icon: formatIcons.aliexpress },
+  { label: 'Etsy CSV', value: 'etsy', icon: formatIcons.etsy },
+  { label: 'eBay CSV', value: 'ebay', icon: formatIcons.ebay },
+  { label: 'Walmart CSV', value: 'walmart', icon: formatIcons.walmart },
 ];
 
 const tabs = [
@@ -619,7 +641,7 @@ export default function ExportPage() {
       >
         <IndexTable.Cell>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Thumbnail source={image} alt={title} size="small" />
+            <Thumbnail source={image ? image : ImageIcon} alt={title} size="small" />
             <Text as="span" variant="bodyMd" truncate>
               {title}
             </Text>
@@ -754,20 +776,14 @@ export default function ExportPage() {
               </IndexTable>
             )}
             {/* Polaris Pagination below the table, left-aligned with range label */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start',marginTop: '10px', marginLeft: '32px', gap: '12px' ,paddingBottom: '20px'}}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginTop: '10px', gap: '12px', paddingBottom: '20px', marginLeft: '15px' }}>
               <Pagination
-                hasPrevious={cursorStack.length > 0}
+                hasPrevious={page > 1}
                 onPrevious={isLoading ? undefined : handlePrevious}
                 hasNext={hasNextPage}
                 onNext={isLoading ? undefined : handleNext}
-                previousTooltip={isLoading ? 'Loading...' : undefined}
-                nextTooltip={isLoading ? 'Loading...' : undefined}
+                label={`${page}/${Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))}`}
               />
-              {/* Range label */}
-              <span style={{ fontSize: 16, color: '#202223', marginLeft: 8 }}>
-                {/* Calculate range based on page and products.length */}
-                {products.length > 0 ? `${(page - 1) * PAGE_SIZE + 1}-${(page - 1) * PAGE_SIZE + products.length}` : '0-0'}
-              </span>
             </div>
           </LegacyCard>
         </Box>

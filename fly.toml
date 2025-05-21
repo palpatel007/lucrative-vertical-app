@@ -10,7 +10,7 @@ primary_region = 'bom'
 
 [env]
   PORT = '3000'
-  SCOPES = 'write_products'
+  SCOPES = 'write_products,read_products,write_metafields,read_metafields'
   SHOPIFY_API_KEY = '8895518da41bc492b0688f740c7c4e1b'
   SHOPIFY_APP_URL = 'https://bulk-data-upload.fly.dev'
 

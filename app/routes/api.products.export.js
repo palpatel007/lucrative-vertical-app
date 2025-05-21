@@ -8,6 +8,13 @@ import { amazonParser } from '../utils/csvParsers/amazonParser.js';
 import { wixParser } from '../utils/csvParsers/wixParser.js';
 import { wooCommerceParser } from '../utils/csvParsers/wooCommerceParser.js';
 import { customParser } from '../utils/csvParsers/customParser.js';
+import { bigCommerceParser } from '../utils/csvParsers/bigCommerceParser.js';
+import { squarespaceParser } from '../utils/csvParsers/squarespaceParser.js';
+import { etsyParser } from '../utils/csvParsers/etsyParser.js';
+import { alibabaParser } from '../utils/csvParsers/alibabaParser.js';
+import { aliExpressParser } from '../utils/csvParsers/aliExpressParser.js';
+import { ebayParser } from '../utils/csvParsers/ebayParser.js';
+import { walmartParser } from '../utils/csvParsers/walmartParser.js';
 
 export const action = async ({ request }) => {
   const url = new URL(request.url);
@@ -169,6 +176,8 @@ export const action = async ({ request }) => {
     csv = await amazonParser.exportToCSV(products);
   } else if (format === 'wix') {
     csv = await wixParser.exportToCSV(products);
+  } else if (format === 'bigcommerce') {
+    csv = await bigCommerceParser.exportToCSV(products);
   } else if (format === 'shopify') {
     headersArr = [
       'Handle',
@@ -284,6 +293,18 @@ export const action = async ({ request }) => {
     }).join(',')).join('\r\n');
   } else if (format === 'customcsv') {
     csv = await customParser.exportToCSV(products);
+  } else if (format === 'squarespace') {
+    csv = await squarespaceParser.exportToCSV(products);
+  } else if (format === 'etsy') {
+    csv = await etsyParser.exportToCSV(products);
+  } else if (format === 'alibaba') {
+    csv = await alibabaParser.exportToCSV(products);
+  } else if (format === 'aliexpress') {
+    csv = await aliExpressParser.exportToCSV(products);
+  } else if (format === 'ebay') {
+    csv = await ebayParser.exportToCSV(products);
+  } else if (format === 'walmart') {
+    csv = await walmartParser.exportToCSV(products);
   } else {
     return json({ success: false, error: 'Unsupported format' }, { status: 400 });
   }

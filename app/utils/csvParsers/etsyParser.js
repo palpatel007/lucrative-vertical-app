@@ -1,4 +1,5 @@
 import { parse } from 'csv-parse/sync';
+import { stringify } from 'csv-stringify';
 
 export const etsyParser = {
     async parseCSV(csvText) {
@@ -72,5 +73,44 @@ export const etsyParser = {
             console.error('Error parsing Etsy CSV:', error);
             throw new Error('Failed to parse Etsy CSV file');
         }
+    },
+    async exportToCSV(products) {
+        const columns = [
+            'Title',
+            'Description',
+            'Price',
+            'Quantity',
+            'SKU',
+            'Tags',
+            'Materials',
+            'Image URL',
+            'Shipping Profile',
+            'Who made it?',
+            'When was it made?',
+            'Is it a supply?'
+        ];
+        const records = products.map(product => {
+            const variant = Array.isArray(product.variants) && product.variants[0] ? product.variants[0] : {};
+            return {
+                'Title': product.title || '',
+                'Description': product.description || '',
+                'Price': variant.price || product.price || '',
+                'Quantity': variant.inventoryQuantity || product.inventoryQuantity || '',
+                'SKU': product.sku || variant.sku || '',
+                'Tags': Array.isArray(product.tags) ? product.tags.join(',') : (product.tags || ''),
+                'Materials': product.materials || '',
+                'Image URL': Array.isArray(product.images) ? product.images.map(img => img.src).join(',') : '',
+                'Shipping Profile': product.shippingProfile || 'Standard Shipping',
+                'Who made it?': product.whoMade || 'I did',
+                'When was it made?': product.whenMade || '2020-2024',
+                'Is it a supply?': product.isSupply || 'No',
+            };
+        });
+        return new Promise((resolve, reject) => {
+            stringify(records, { header: true, columns }, (err, output) => {
+                if (err) reject(err);
+                else resolve(output);
+            });
+        });
     }
 }; 

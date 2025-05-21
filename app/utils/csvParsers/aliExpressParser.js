@@ -1,4 +1,5 @@
 import { parse } from 'csv-parse/sync';
+import { stringify } from 'csv-stringify';
 
 export const aliExpressParser = {
     async parseCSV(csvText) {
@@ -11,6 +12,8 @@ export const aliExpressParser = {
 
             // Helper to generate all combinations of option values
             function cartesian(arr) {
+                if (arr.length === 0) return [];
+                if (arr.length === 1) return arr[0].map(v => [v]);
                 return arr.reduce((a, b) => a.flatMap(d => b.map(e => [].concat(d, e))));
             }
 
@@ -68,9 +71,14 @@ export const aliExpressParser = {
                     }
                   });
                   if (optionNames.length > 0) {
+                    // Set options to match the variation name and values
                     options = optionNames.map((name, idx) => ({ name, values: optionValuesArr[idx] }));
                     // Generate all combinations
-                    const combos = cartesian(optionValuesArr);
+                    let combos = cartesian(optionValuesArr);
+                    // Ensure combos is always an array of arrays
+                    if (combos.length > 0 && !Array.isArray(combos[0])) {
+                      combos = combos.map(v => [v]);
+                    }
                     variants = combos.map(combo => {
                       const variant = {
                         price,
@@ -80,6 +88,7 @@ export const aliExpressParser = {
                         inventory_quantity: inventoryQuantity,
                         stock_quantity: inventoryQuantity
                       };
+                      // Ensure option1, option2, ... fields are set
                       combo.forEach((val, idx) => {
                         variant[`option${idx+1}`] = val;
                       });
@@ -92,20 +101,11 @@ export const aliExpressParser = {
                 if (options.length > 0 && variants.length === 0) {
                   options = [];
                 }
-                // If no variants were created, create a default variant
+                // If no variants were created, create a default variant and default option
                 if (variants.length === 0) {
-                  variants = [
-                    {
-                      title: variantTitle || 'Default Title',
-                      price,
-                      sku,
-                      inventoryQuantity,
-                      inventoryPolicy,
-                      inventory_quantity: inventoryQuantity,
-                      stock_quantity: inventoryQuantity,
-                      option1: undefined
-                    }
-                  ];
+                  // Do not add options or variants for simple products (no variation)
+                  options = undefined;
+                  variants = undefined;
                 }
 
                 // Metafields for extra info
@@ -143,5 +143,50 @@ export const aliExpressParser = {
             console.error('Error parsing AliExpress CSV:', error);
             throw new Error('Failed to parse AliExpress CSV file');
         }
+    },
+    async exportToCSV(products) {
+        const columns = [
+            'Product ID',
+            'Product Title',
+            'Category',
+            'Product Description',
+            'SKU',
+            'Price',
+            'Stock',
+            'Image URL',
+            'Shipping Method',
+            'Shipping Fee',
+            'Delivery Time (Days)',
+            'Brand Name',
+            'Condition',
+            'Variation'
+        ];
+        const records = products.map(product => {
+            const variant = Array.isArray(product.variants) && product.variants[0] ? product.variants[0] : {};
+            return {
+                'Product ID': product.productId || '',
+                'Product Title': product.title || '',
+                'Category': product.productType || '',
+                'Product Description': product.description || '',
+                'SKU': product.sku || variant.sku || '',
+                'Price': variant.price || product.price || '',
+                'Stock': variant.inventoryQuantity || product.inventoryQuantity || '',
+                'Image URL': Array.isArray(product.images) ? product.images.map(img => img.src).join(';') : '',
+                'Shipping Method': product.shippingMethod || '',
+                'Shipping Fee': product.shippingFee || '',
+                'Delivery Time (Days)': product.deliveryTime || '',
+                'Brand Name': product.vendor || '',
+                'Condition': product.condition || '',
+                'Variation': (product.options && product.options.length > 0)
+                    ? product.options.map(opt => `${opt.name}:${(opt.values || []).join(';')}`).join('|')
+                    : '',
+            };
+        });
+        return new Promise((resolve, reject) => {
+            stringify(records, { header: true, columns }, (err, output) => {
+                if (err) reject(err);
+                else resolve(output);
+            });
+        });
     }
 }; 

@@ -18,6 +18,16 @@ export async function registerWebhooks(shop, accessToken) {
             topic: 'APP_SUBSCRIPTIONS_PAYMENT_FAILURE',
             address: `${process.env.SHOPIFY_APP_URL}/webhooks/subscription`,
             format: 'json'
+        },
+        {
+            topic: 'APP_UNINSTALLED',
+            address: `${process.env.SHOPIFY_APP_URL}/webhooks/app/uninstalled`,
+            format: 'json'
+        },
+        {
+            topic: 'APP_SCOPES_UPDATE',
+            address: `${process.env.SHOPIFY_APP_URL}/webhooks/app/scopes_update`,
+            format: 'json'
         }
     ];
 

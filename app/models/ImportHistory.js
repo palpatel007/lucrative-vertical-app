@@ -12,5 +12,5 @@ const ImportHistorySchema = new mongoose.Schema({
   issuesCount: { type: Number, default: 0 },
 });
 
-const ImportHistory = mongoose.model('ImportHistory', ImportHistorySchema);
+const ImportHistory = mongoose.models.ImportHistory || mongoose.model('ImportHistory', ImportHistorySchema);
 export default ImportHistory; 

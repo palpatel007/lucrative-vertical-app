@@ -53,7 +53,7 @@ export const action = async ({ request }) => {
       apiSecretKey: process.env.SHOPIFY_API_SECRET,
       scopes: process.env.SCOPES.split(','),
       hostName: shop.replace(/https?:\/\//, ''),
-      apiVersion: LATEST_API_VERSION,
+      apiVersion: '2024-04',
       isEmbeddedApp: true,
     });
 

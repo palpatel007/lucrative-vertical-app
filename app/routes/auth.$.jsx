@@ -10,6 +10,8 @@ export const loader = async ({ request }) => {
     const shop = url.searchParams.get('shop');
     const returnTo = url.searchParams.get('returnTo') || '/app/dashboard';
     if (shop) {
+      // Log the SCOPES env variable before redirecting to OAuth
+      console.log('[Auth Route] About to redirect to OAuth. SCOPES:', process.env.SCOPES);
       // Redirect to Shopify OAuth flow, preserving returnTo
       return redirect(`/auth/callback?shop=${shop}&returnTo=${encodeURIComponent(returnTo)}`);
     }

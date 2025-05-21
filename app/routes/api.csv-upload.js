@@ -27,14 +27,16 @@ import { buildShopifyProductFromAliExpressCSV } from '../utils/productBuilders/a
 import { buildShopifyProductFromEtsyCSV } from '../utils/productBuilders/etsyBuilder.js';
 import { buildShopifyProductFromEbayCSV } from '../utils/productBuilders/ebayBuilder.js';
 import ImportIssue from '../models/ImportIssue.js';
+import { walmartParser } from '../utils/csvParsers/walmartParser.js';
+import { buildShopifyProductFromWalmartCSV } from '../utils/productBuilders/walmartBuilder.js';
 
 // Shopify API setup (replace with your actual credentials or use env vars)
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
-  scopes: process.env.SHOPIFY_API_SCOPES?.split(',') || ['write_products'],
+  scopes: process.env.SHOPIFY_API_SCOPES?.split(',') ,
   hostName: process.env.HOST?.replace(/https?:\/\//, '') || 'localhost',
-  apiVersion: LATEST_API_VERSION,
+  apiVersion: '2024-04',
   isEmbeddedApp: true,
   future: {
     lineItemBilling: true,
@@ -48,6 +50,21 @@ export const action = async ({ request }) => {
   try {
     // Get authenticated session
     const { session } = await authenticate.admin(request);
+    console.log('[Shopify Import] Full session:', session);
+    console.log('[Shopify Import] Session scopes:', session?.scope || session?.scopes);
+    console.log('[Shopify Import] Access token:', session?.accessToken);
+    
+    // Check for required scopes
+    // const requiredScopes = ['read_product_listings', 'read_products', 'write_products'];
+    // const sessionScopes = (session?.scope || session?.scopes || '').split(',');
+    // const missingScopes = requiredScopes.filter(scope => !sessionScopes.includes(scope));
+    // if (missingScopes.length > 0) {
+    //   return json({
+    //     success: false,
+    //     error: `Missing required Shopify scopes: ${missingScopes.join(', ')}. Please re-authenticate the app.`
+    //   }, { status: 401 });
+    // }
+
     if (!session) {
       return json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
@@ -117,7 +134,7 @@ export const action = async ({ request }) => {
       switch (format.toLowerCase()) {
         case 'shopify':
           const parseResult = await shopifyParser.parseCSV(csvText, { shop }, accessToken);
-          products = Array.isArray(parseResult.products) ? parseResult.products : [];
+          products = Array.isArray(parseResult) ? parseResult : (parseResult.products || []);
           if (!Array.isArray(products)) {
             return json({
               success: false,
@@ -160,6 +177,9 @@ export const action = async ({ request }) => {
           break;
         case 'ebay':
           products = await ebayParser.parseCSV(csvText);
+          break;
+        case 'walmart':
+          products = await walmartParser.parseCSV(csvText);
           break;
         default:
           return json({
@@ -235,6 +255,49 @@ export const action = async ({ request }) => {
       }, { status: 500 });
     }
 
+    // Fetch allowed metafield definitions for products (with pagination and debug logging)
+    let allowedMetafields = new Set();
+    try {
+      let metafieldDefinitions = [];
+      let url = `https://${shopEnv}/admin/api/2024-04/metafield_definitions.json?owner_type=PRODUCT&limit=250`;
+      console.log('[Shopify Import] Fetching metafield definitions from:', url);
+      console.log('[Shopify Import] Using access token:', accessToken ? accessToken.slice(0, 6) + '...' : 'none');
+      console.log('[Shopify Import] Session scopes:', session?.scope || session?.scopes);
+      do {
+        const defsRes = await fetch(url, {
+          headers: { 'X-Shopify-Access-Token': accessToken }
+        });
+        console.log('[Shopify Import] Metafield definitions response status:', defsRes.status);
+        const defsJson = await defsRes.json();
+        if (defsRes.status === 404) {
+          console.error('[Shopify Import] ERROR: Metafield definitions endpoint returned 404. This usually means your app does not have the required access scopes or the endpoint is not available for your API version/store.');
+        }
+        // Debug: log the full response for the first page
+        if (metafieldDefinitions.length === 0) {
+          console.log('[Shopify Import] Full metafield_definitions API response:', JSON.stringify(defsJson, null, 2));
+        }
+        if (defsJson.metafield_definitions) {
+          metafieldDefinitions = metafieldDefinitions.concat(defsJson.metafield_definitions);
+        }
+        // Check for pagination (Shopify uses Link header for pagination)
+        const linkHeader = defsRes.headers.get('link');
+        if (linkHeader && linkHeader.includes('rel="next"')) {
+          // Extract next page URL from Link header
+          const match = linkHeader.match(/<([^>]+)>; rel="next"/);
+          url = match ? match[1] : null;
+        } else {
+          url = null;
+        }
+      } while (url);
+      metafieldDefinitions.forEach(def => {
+        allowedMetafields.add(`${def.namespace}:${def.key}`);
+      });
+      // Log allowed metafields for debugging
+      console.log('[Shopify Import] Allowed metafields:', Array.from(allowedMetafields));
+    } catch (err) {
+      console.warn('[Shopify Import] Could not fetch metafield definitions:', err);
+    }
+
     // Batch processing
     const batchSize = 10;
     const results = { success: [], failed: [] };
@@ -281,6 +344,9 @@ export const action = async ({ request }) => {
             case 'ebay':
               shopifyProduct = buildShopifyProductFromEbayCSV(product);
               break;
+            case 'walmart':
+              shopifyProduct = buildShopifyProductFromWalmartCSV(product);
+              break;
             default:
               results.failed.push({ product, error: 'Invalid CSV format for builder' });
               continue;
@@ -310,7 +376,7 @@ export const action = async ({ request }) => {
 
           let response, result;
           try {
-            response = await fetch(`https://${shopEnv}/admin/api/${LATEST_API_VERSION}/products.json`, {
+            response = await fetch(`https://${shopEnv}/admin/api/2024-04/products.json`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -319,6 +385,59 @@ export const action = async ({ request }) => {
               body: JSON.stringify({ product: shopifyProduct }),
             });
             result = await response.json();
+
+            // After product creation, create metafields if present and allowed
+            if (response.ok && result.product && Array.isArray(shopifyProduct.metafields) && shopifyProduct.metafields.length > 0) {
+              // Log product ID and shop domain
+              console.log('[Shopify Import] Creating metafields for product ID:', result.product.id, 'on shop:', shopEnv);
+              // Filter metafields to only those allowed by Shopify and with non-empty values
+              const filteredMetafields = shopifyProduct.metafields.filter(mf =>
+                allowedMetafields.has(`${mf.namespace}:${mf.key}`) &&
+                mf.value !== undefined &&
+                mf.value !== null &&
+                String(mf.value).trim() !== ''
+              );
+              // Log skipped metafields for debugging
+              shopifyProduct.metafields.forEach(mf => {
+                if (!allowedMetafields.has(`${mf.namespace}:${mf.key}`)) {
+                  console.log('[Shopify Import] Skipping undefined metafield:', mf.namespace, mf.key, '| Value:', mf.value);
+                } else if (mf.value === undefined || mf.value === null || String(mf.value).trim() === '') {
+                  console.log('[Shopify Import] Skipping empty metafield:', mf.namespace, mf.key, '| Value:', mf.value);
+                }
+              });
+              // Only create allowed, non-empty metafields
+              for (const metafield of filteredMetafields) {
+                try {
+                  // Ensure metafield payload matches Shopify's required structure
+                  const metafieldPayload = {
+                    metafield: {
+                      namespace: metafield.namespace,
+                      key: metafield.key,
+                      value: metafield.value,
+                      type: metafield.type || 'single_line_text_field',
+                    }
+                  };
+                  console.log('[Shopify Import] Sending metafield payload:', JSON.stringify(metafieldPayload));
+                  const mfRes = await fetch(`https://${shopEnv}/admin/api/2024-04/products/${result.product.id}/metafields.json`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Shopify-Access-Token': accessToken,
+                    },
+                    body: JSON.stringify(metafieldPayload)
+                  });
+                  const mfResult = await mfRes.json();
+                  if (!mfRes.ok) {
+                    console.warn('[Shopify Import] Failed to create metafield:', metafieldPayload, '| Shopify response:', JSON.stringify(mfResult));
+                    // Add error to results.failed for user feedback
+                    results.failed.push({ product: shopifyProduct, metafield: metafieldPayload, error: mfResult.errors || mfResult });
+                  }
+                } catch (mfErr) {
+                  console.warn('[Shopify Import] Error creating metafield:', metafield, mfErr);
+                  results.failed.push({ product: shopifyProduct, metafield, error: mfErr.message });
+                }
+              }
+            }
           } catch (apiError) {
             results.failed.push({ product: shopifyProduct, error: `API error: ${apiError.message}` });
             continue;
@@ -349,7 +468,7 @@ export const action = async ({ request }) => {
 
                   // Check if collection exists
                   const searchResponse = await fetch(
-                    `https://${shopEnv}/admin/api/${LATEST_API_VERSION}/custom_collections.json?title=${encodeURIComponent(collectionTitle)}`,
+                    `https://${shopEnv}/admin/api/2024-04/custom_collections.json?title=${encodeURIComponent(collectionTitle)}`,
                     {
                       headers: {
                         'X-Shopify-Access-Token': accessToken,
@@ -365,7 +484,7 @@ export const action = async ({ request }) => {
                   } else {
                     // Create new collection
                     const createResponse = await fetch(
-                      `https://${shopEnv}/admin/api/${LATEST_API_VERSION}/custom_collections.json`,
+                      `https://${shopEnv}/admin/api/2024-04/custom_collections.json`,
                       {
                         method: 'POST',
                         headers: {
@@ -387,7 +506,7 @@ export const action = async ({ request }) => {
 
                   // Add product to collection
                   await fetch(
-                    `https://${shopEnv}/admin/api/${LATEST_API_VERSION}/collects.json`,
+                    `https://${shopEnv}/admin/api/2024-04/collects.json`,
                     {
                       method: 'POST',
                       headers: {

@@ -3,7 +3,7 @@
 client_id = "8895518da41bc492b0688f740c7c4e1b"
 name = "Bulk Data Upload"
 handle = "bulk-data-upload"
-application_url = "https://tired-webster-chef-discussed.trycloudflare.com"
+application_url = "https://cannon-worldcat-stem-murder.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,15 +17,19 @@ api_version = "2024-01"
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes/update" ]
+  uri = "/webhooks/app/scopes_update"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "write_products,read_products,write_metafields,read_metafields"
 
 [auth]
 redirect_urls = [
-  "https://tired-webster-chef-discussed.trycloudflare.com/auth/callback",
-  "https://tired-webster-chef-discussed.trycloudflare.com/auth/shopify/callback",
-  "https://tired-webster-chef-discussed.trycloudflare.com/api/auth/callback"
+  "https://cannon-worldcat-stem-murder.trycloudflare.com/auth/callback",
+  "https://cannon-worldcat-stem-murder.trycloudflare.com/auth/shopify/callback",
+  "https://cannon-worldcat-stem-murder.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

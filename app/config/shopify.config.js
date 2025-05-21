@@ -12,10 +12,10 @@ if (!appUrl.startsWith('http://') && !appUrl.startsWith('https://')) {
 export const shopifyConfig = {
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
-  scopes: process.env.SCOPES?.split(',') || ['write_products'],
+  scopes: process.env.SCOPES?.split(',') ,
   hostName,
   appUrl,
-  apiVersion: LATEST_API_VERSION,
+  apiVersion: '2024-04',
   isEmbeddedApp: true,
   future: {
     lineItemBilling: true,
