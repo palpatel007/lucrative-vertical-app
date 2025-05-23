@@ -24,6 +24,8 @@ import { redirect, json } from '@remix-run/node';
 import { useAppBridge } from '@shopify/app-bridge-react';
 import { Redirect } from '@shopify/app-bridge/actions';
 import { Subscription } from '../models/subscription.js';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 
 import frame1 from '../assets/Frame (1).png';
 import frame2 from '../assets/Frame (2).png';
@@ -37,26 +39,15 @@ import Footer from '../components/Footer';
 export const loader = async ({ request }) => {
   // Authenticate the user/session (same as dashboard)
   const { session } = await authenticate.admin(request);
-  console.log('[Billing Loader] Session:', session);
   const shopDomain = session.shop;
   const accessToken = session.accessToken;
 
   if (!shopDomain) {
-    console.warn('[Billing Loader] No valid session found. Redirecting to login page.', { session });
     return json({ error: "Missing shop parameter" }, { status: 400 });
   }
 
-  console.log('[Billing Loader] Request headers:', request.headers);
-  console.log('[Billing Loader] Session:', session);
-  console.log('[Billing Loader] Cookies:', request.headers.get('cookie'));
   try {
-    console.log('[Billing Loader] Starting billing loader');
     const { session: sessionFromAuth } = await authenticate.admin(request);
-    console.log('[Billing Loader] Session details:', {
-      shop: session?.shop,
-      hasAccessToken: !!session?.accessToken,
-      isActive: !!session?.isActive
-    });
 
     if (!session || !session.shop) {
       const url = new URL(request.url);
@@ -80,8 +71,6 @@ export const loader = async ({ request }) => {
 
     try {
       if (chargeId && planName && shopName) {
-        console.log('[Billing Loader] session.shop:', session.shop, 'session.accessToken:', session.accessToken);
-        // Fetch charge status from Shopify
         const response = await fetch(
           `https://${session.shop}/admin/api/2024-01/recurring_application_charges/${chargeId}.json`,
           {
@@ -92,8 +81,6 @@ export const loader = async ({ request }) => {
           }
         );
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[Billing Loader] Shopify API error:', response.status, errorText);
           throw new Error('Failed to fetch charge from Shopify');
         }
         const data = await response.json();
@@ -111,16 +98,13 @@ export const loader = async ({ request }) => {
         }
       }
     } catch (err) {
-      console.error('[Billing Loader] Charge check error:', err);
       throw err;
     }
 
     // Get the current URL to construct the proper API URL
     const baseUrl = `${url.protocol}//${url.host}`;
-    console.log('[Billing Loader] Base URL:', baseUrl);
 
     // Fetch current subscription and plans with proper headers
-    console.log('[Billing Loader] Fetching billing data for shop:', shop);
     const response = await fetch(`${baseUrl}/api/billing?shop=${shop}`, {
       headers: {
         'Content-Type': 'application/json',
@@ -132,19 +116,10 @@ export const loader = async ({ request }) => {
       credentials: 'include' // Include cookies in the request
     });
 
-    console.log('[Billing Loader] Billing API response status:', response.status);
-
     if (!response.ok) {
-      console.error('[Billing Loader] Failed to fetch billing data:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
       // Handle specific error cases
       if (response.status === 410) {
         // Session expired - try to refresh the session
-        console.log('[Billing Loader] Session expired, attempting to refresh');
         const refreshResponse = await fetch(`${baseUrl}/auth/refresh?shop=${shop}`, {
           method: 'POST',
           headers: {
@@ -154,14 +129,8 @@ export const loader = async ({ request }) => {
           credentials: 'include'
         });
 
-        console.log('[Billing Loader] Session refresh response:', {
-          status: refreshResponse.status,
-          ok: refreshResponse.ok
-        });
-
         if (refreshResponse.ok) {
           // Retry the billing request after refresh
-          console.log('[Billing Loader] Retrying billing request after refresh');
           const retryResponse = await fetch(`${baseUrl}/api/billing?shop=${shop}`, {
             headers: {
               'Content-Type': 'application/json',
@@ -173,7 +142,6 @@ export const loader = async ({ request }) => {
 
           if (retryResponse.ok) {
             const data = await retryResponse.json();
-            console.log('[Billing Loader] Successfully fetched billing data after refresh');
             return {
               subscription: data.subscription,
               plans: data.plans,
@@ -186,13 +154,11 @@ export const loader = async ({ request }) => {
         }
 
         // If refresh failed, redirect to auth
-        console.log('[Billing Loader] Session refresh failed, redirecting to auth');
         return redirect('/auth');
       }
 
       if (response.status === 401 || response.status === 403) {
         // Authentication issues - redirect to auth
-        console.log('[Billing Loader] Authentication failed, redirecting to auth');
         return redirect('/auth');
       }
 
@@ -201,15 +167,8 @@ export const loader = async ({ request }) => {
     }
 
     const data = await response.json();
-    console.log('[Billing Loader] Successfully fetched billing data:', {
-      hasSubscription: !!data.subscription,
-      plansCount: data.plans?.length,
-      subscriptionPlan: data.subscription?.plan,
-      subscriptionStatus: data.subscription?.status
-    });
 
     if (!data || !data.plans || !Array.isArray(data.plans)) {
-      console.error('[Billing Loader] Invalid response data:', data);
       throw new Error('Invalid billing data received');
     }
 
@@ -222,10 +181,6 @@ export const loader = async ({ request }) => {
       }
     };
   } catch (error) {
-    console.error('[Billing Loader] Error:', {
-      message: error.message,
-      stack: error.stack
-    });
     // Only redirect to auth if it's a session-related error
     if (error.message.includes('session') || error.message.includes('auth')) {
       return redirect('/auth');
@@ -311,6 +266,7 @@ function BillingSkeleton() {
 }
 
 export default function BillingPage() {
+  const { t } = useTranslation();
   const { subscription, plans, session, redirectToDashboard } = useLoaderData();
   const [toastActive, setToastActive] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -324,6 +280,7 @@ export default function BillingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const app = useAppBridge();
   const [cookieWarning, setCookieWarning] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState(i18n.language || 'en');
 
   useEffect(() => {
     function isEmbedded() {
@@ -372,20 +329,6 @@ export default function BillingPage() {
         throw new Error('No confirmation URL received from server');
       }
 
-      // Debug logs for App Bridge redirect issue
-      function isEmbedded() {
-        try {
-          return window.top !== window.self;
-        } catch (e) {
-          return true;
-        }
-      }
-      console.log('isEmbedded:', isEmbedded());
-      console.log('app:', app);
-      const redirect = Redirect.create(app);
-      console.log('redirect:', redirect);
-      console.log('redirect.dispatch:', redirect && redirect.dispatch);
-
       // Redirect user to Shopify's confirmationUrl for approval
       window.top.location.href = data.confirmationUrl;
     } catch (error) {
@@ -404,24 +347,24 @@ export default function BillingPage() {
 
   const plansList = [
     {
-      name: 'FREE',
+      name: t('billing.free'),
       price: '$0',
       period: '/mo',
       features: [
-        '20 Products Import & Export',
-        'Shopify, WooCommerce',
-        "Doesn't renew",
+        t('billing.import_export_20'),
+        t('billing.platforms_shop'),
+        t('billing.does_not_renew'),
       ],
-      button: <Button fullWidth disabled>Current Plan</Button>,
+      button: <Button fullWidth disabled>{t('billing.current_plan')}</Button>,
     },
     {
-      name: 'SHOP PLAN',
+      name: t('billing.shop_plan'),
       price: '$9.99',
       period: '/mo',
       features: [
-        '100 Products Import & Export',
-        'Shopify, WooCommerce, Wix, BigCommerce, Squarespace',
-        'Renews monthly',
+        t('billing.import_export_100'),
+        t('billing.platforms_shop_plus'),
+        t('billing.renews_monthly'),
       ],
       button: <Button
         fullWidth
@@ -432,19 +375,19 @@ export default function BillingPage() {
         {loadingPlan === 'SHOP PLAN' ? (
           <InlineStack gap="200" align="center">
             <Spinner size="small" />
-            <span>Upgrading...</span>
+            <span>{t('billing.upgrading')}</span>
           </InlineStack>
-        ) : subscription?.plan === 'SHOP PLAN' ? 'Current Plan' : 'Upgrade'}
+        ) : subscription?.plan === 'SHOP PLAN' ? t('billing.current_plan') : t('billing.upgrade')}
       </Button>,
     },
     {
-      name: 'WAREHOUSE PLAN',
+      name: t('billing.warehouse_plan'),
       price: '$14.99',
       period: '/mo',
       features: [
-        '300 Products Import & Export',
-        'Shopify, WooCommerce, Squarespace, Amazon, Alibaba, Custom Sheet',
-        'Renews monthly',
+        t('billing.import_export_300'),
+        t('billing.platforms_warehouse'),
+        t('billing.renews_monthly'),
       ],
       button: <Button
         fullWidth
@@ -455,20 +398,20 @@ export default function BillingPage() {
         {loadingPlan === 'WAREHOUSE PLAN' ? (
           <InlineStack gap="200" align="center">
             <Spinner size="small" />
-            <span>Upgrading...</span>
+            <span>{t('billing.upgrading')}</span>
           </InlineStack>
-        ) : subscription?.plan === 'WAREHOUSE PLAN' ? 'Current Plan' : 'Upgrade'}
+        ) : subscription?.plan === 'WAREHOUSE PLAN' ? t('billing.current_plan') : t('billing.upgrade')}
       </Button>,
     },
     {
-      name: 'FACTORY PLAN',
+      name: t('billing.factory_plan'),
       price: '$49.99',
       period: '/mo',
       features: [
-        '1,000 Products Import & Export',
-        'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy',
-        'Renews monthly',
-        'Priority support',
+        t('billing.import_export_1000'),
+        t('billing.platforms_factory'),
+        t('billing.renews_monthly'),
+        t('billing.priority_support'),
       ],
       button: <Button
         fullWidth
@@ -479,20 +422,20 @@ export default function BillingPage() {
         {loadingPlan === 'FACTORY PLAN' ? (
           <InlineStack gap="200" align="center">
             <Spinner size="small" />
-            <span>Upgrading...</span>
+            <span>{t('billing.upgrading')}</span>
           </InlineStack>
-        ) : subscription?.plan === 'FACTORY PLAN' ? 'Current Plan' : 'Upgrade'}
+        ) : subscription?.plan === 'FACTORY PLAN' ? t('billing.current_plan') : t('billing.upgrade')}
       </Button>,
     },
     {
-      name: 'FRANCHISE PLAN',
+      name: t('billing.franchise_plan'),
       price: '$129.99',
       period: '/mo',
       features: [
-        '3,000 Products Import & Export',
-        'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, Ebay',
-        'Renews monthly',
-        'Priority support',
+        t('billing.import_export_3000'),
+        t('billing.platforms_franchise'),
+        t('billing.renews_monthly'),
+        t('billing.priority_support'),
       ],
       button: <Button
         fullWidth
@@ -503,22 +446,22 @@ export default function BillingPage() {
         {loadingPlan === 'FRANCHISE PLAN' ? (
           <InlineStack gap="200" align="center">
             <Spinner size="small" />
-            <span>Upgrading...</span>
+            <span>{t('billing.upgrading')}</span>
           </InlineStack>
-        ) : subscription?.plan === 'FRANCHISE PLAN' ? 'Current Plan' : 'Upgrade'}
+        ) : subscription?.plan === 'FRANCHISE PLAN' ? t('billing.current_plan') : t('billing.upgrade')}
       </Button>,
     },
     {
-      name: 'CITADEL PLAN',
+      name: t('billing.citadel_plan'),
       price: '$499.99',
       period: '/mo',
       features: [
-        '50,000 Products Import & Export',
-        'Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, Ebay',
-        'Renews monthly',
-        'Priority support',
+        t('billing.import_export_50000'),
+        t('billing.platforms_citadel'),
+        t('billing.renews_monthly'),
+        t('billing.priority_support'),
       ],
-      button: <Button fullWidth disabled>Contact us to upgrade</Button>,
+      button: <Button fullWidth disabled>{t('billing.contact_us_to_upgrade')}</Button>,
     },
   ];
 
@@ -533,7 +476,6 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (chargeId && plan && shop) {
-      // Optionally, check subscription?.status === 'active' before navigating
       navigate('/app/billing', { replace: true });
     }
   }, [chargeId, plan, shop, navigate]);
@@ -547,13 +489,21 @@ export default function BillingPage() {
   }, [subscription, navigate]);
 
   useEffect(() => {
-    if (redirectToDashboard && shop) {
-      const appHandle = session.shop; // TODO: Set your app's handle here
-      const redirect = Redirect.create(app);
-      redirect.dispatch(
-        Redirect.Action.REMOTE,
-        `https://${shop}/admin/apps/${appHandle}`
-      );
+    if (redirectToDashboard && shop && app) {
+      try {
+        const appHandle = session.shop;
+        const redirect = Redirect.create(app);
+        if (redirect && typeof redirect.dispatch === 'function') {
+          redirect.dispatch(
+            Redirect.Action.REMOTE,
+            `https://${shop}/admin/apps/${appHandle}`
+          );
+        } else {
+          console.error('Redirect object or dispatch function is not valid:', redirect);
+        }
+      } catch (err) {
+        console.error('App Bridge redirect error:', err);
+      }
     }
   }, [redirectToDashboard, app, shop]);
 
@@ -564,9 +514,7 @@ export default function BillingPage() {
     }
   }, []);
 
-  if (isLoading) {
-    return <BillingSkeleton />;
-  }
+
 
   return (
     <>
@@ -582,7 +530,7 @@ export default function BillingPage() {
           <Box paddingBlockStart="400">
             <Box paddingBlockEnd="400">
               <Text variant="headingLg" as="h2" fontWeight="bold" alignment="left" marginBlockEnd="400">
-                Pricing Plans
+                {t('billing.title')}
               </Text>
             </Box>
             <InlineGrid columns={3} rows={2} gap="400">
@@ -645,13 +593,13 @@ export default function BillingPage() {
         {toastActive && (
           <Toast content={toastMessage} onDismiss={toggleToast} />
         )}
-        {cookieWarning && (
+        {/* {cookieWarning && (
           <Box padding="400" background="bg-warning-subdued">
             <Text color="critical">
-              Warning: Cookies are disabled or blocked. Please enable third-party cookies in your browser and ensure you are not using a tunnel that blocks cookies (like some Cloudflare/ngrok setups). Shopify embedded apps require cookies to work correctly.
+              {t('billing.cookie_warning')}
             </Text>
           </Box>
-        )}
+        )} */}
       </Frame>
     </>
   );

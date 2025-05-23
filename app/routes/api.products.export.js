@@ -66,9 +66,9 @@ export const action = async ({ request }) => {
     // Check plan limits before proceeding
     const { checkPlanLimits } = await import('../utils/planLimits.js');
     const limitCheck = await checkPlanLimits(shopDoc._id, 'export', productIds.length);
-    console.log('[Export][PlanLimits] limitCheck:', limitCheck);
+    // console.log('[Export][PlanLimits] limitCheck:', limitCheck);
     if (!limitCheck.allowed) {
-      console.log('[Export][PlanLimits] Export not allowed:', limitCheck);
+      // console.log('[Export][PlanLimits] Export not allowed:', limitCheck);
       return json({
         success: false,
         error: `Export limit exceeded. Your ${limitCheck.plan} plan allows ${limitCheck.limit} exports. You have used ${limitCheck.current} and tried to export ${productIds.length} more.`,
@@ -85,11 +85,11 @@ export const action = async ({ request }) => {
     // Enforce the export limit for the plan BEFORE fetching
     exportLimit = limitCheck.limit - limitCheck.current;
     if (type === 'selected' && productIds.length > exportLimit) {
-      console.log('[Export][PlanLimits] Slicing productIds to exportLimit:', exportLimit);
+      // console.log('[Export][PlanLimits] Slicing productIds to exportLimit:', exportLimit);
       productIds = productIds.slice(0, exportLimit);
     }
   } catch (error) {
-    console.log('[Export][Error] Auth/subscription/plan error:', error);
+    // console.log('[Export][Error] Auth/subscription/plan error:', error);
     return json({ success: false, error: 'Please log in to continue' }, { status: 401 });
   }
 

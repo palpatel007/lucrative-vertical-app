@@ -349,7 +349,7 @@ export default function Import() {
     { label: t('import.sourceOptions.amazon', 'Amazon Seller'), value: 'amazon' },
     { label: t('import.sourceOptions.walmart', 'Walmart Seller'), value: 'walmart' },
     { label: t('import.sourceOptions.ebay', 'Ebay Seller'), value: 'ebay' },
-    // { label: t('import.sourceOptions.aliexpress', 'AliExpress'), value: 'aliexpress' },
+    { label: t('import.sourceOptions.aliexpress', 'AliExpress'), value: 'aliexpress' },
     { label: t('import.sourceOptions.woocommerce', 'WooCommerce'), value: 'woocommerce' },
     { label: t('import.sourceOptions.wix', 'Wix Seller'), value: 'wix' },
     { label: t('import.sourceOptions.alibaba', 'Alibaba'), value: 'alibaba' },
@@ -681,9 +681,7 @@ export default function Import() {
           </Card>
         </Box>
         <ImportHistoryTable importHistory={importHistory} onViewIssues={handleViewIssues} historyLoading={historyLoading} t={t} />
-
-        {/* Quick Tutorials */}
-        {/* <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400" paddingBlockStart="400">
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400" paddingBlockStart="400">
           <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
             <BlockStack gap="200">
               <Text variant="headingMd">{t('import.quick_tutorials')}</Text>
@@ -741,10 +739,9 @@ export default function Import() {
               </Box>
             </BlockStack>
           </Card>
-        </Box> */}
+        </Box>
 
-        {/* Need Help or Import */}
-        <Box display="flex" justifyContent="flex-start" paddingBlockStart="400">
+        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <Card paddingBlockStart="600" paddingBlockEnd="600" background="bg-surface" borderRadius="2xl">
             <div style={{ padding: '5px 0px 11px 2px' }}>
               <Text variant="headingMd" as="h2" fontWeight="bold">
@@ -792,7 +789,7 @@ export default function Import() {
                 </Box>
               </Card>
             </InlineGrid>
-            <Box display="flex" paddingBlockStart="400" paddingBlockEnd="400">
+            <Box display="flex" paddingBlockStart="400" >
               <FaqSection />
             </Box>
           </Card>

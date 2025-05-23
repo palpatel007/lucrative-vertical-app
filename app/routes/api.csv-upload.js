@@ -34,7 +34,7 @@ import { buildShopifyProductFromWalmartCSV } from '../utils/productBuilders/walm
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
-  scopes: process.env.SHOPIFY_API_SCOPES?.split(',') ,
+  scopes: process.env.SHOPIFY_API_SCOPES?.split(','),
   hostName: process.env.HOST?.replace(/https?:\/\//, '') || 'localhost',
   apiVersion: '2024-04',
   isEmbeddedApp: true,
@@ -45,25 +45,33 @@ const shopify = shopifyApi({
   }
 });
 
+// Add GraphQL upsert mutation for metafields
+const METAFIELD_UPSERT = `
+  mutation metafieldUpsert($input: MetafieldInput!) {
+    metafieldUpsert(input: $input) {
+      metafield {
+        id
+        namespace
+        key
+        value
+        type
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+// Helper to check allowed namespaces for metafields
+const allowedNamespace = (ns) => ['custom', 'mybrand', 'myapp'].includes(ns);
+
 export const action = async ({ request }) => {
   let subscription = null;
   try {
     // Get authenticated session
     const { session } = await authenticate.admin(request);
-    console.log('[Shopify Import] Full session:', session);
-    console.log('[Shopify Import] Session scopes:', session?.scope || session?.scopes);
-    console.log('[Shopify Import] Access token:', session?.accessToken);
-    
-    // Check for required scopes
-    // const requiredScopes = ['read_product_listings', 'read_products', 'write_products'];
-    // const sessionScopes = (session?.scope || session?.scopes || '').split(',');
-    // const missingScopes = requiredScopes.filter(scope => !sessionScopes.includes(scope));
-    // if (missingScopes.length > 0) {
-    //   return json({
-    //     success: false,
-    //     error: `Missing required Shopify scopes: ${missingScopes.join(', ')}. Please re-authenticate the app.`
-    //   }, { status: 401 });
-    // }
 
     if (!session) {
       return json({ success: false, error: 'Not authenticated' }, { status: 401 });
@@ -207,7 +215,7 @@ export const action = async ({ request }) => {
     }
 
     // Log the number of products to import
-    console.log('Number of products to import:', products.length);
+    // console.log('Number of products to import:', products.length);
 
     if (currentCount + products.length > limit) {
       const remainingSlots = limit - currentCount;
@@ -255,49 +263,6 @@ export const action = async ({ request }) => {
       }, { status: 500 });
     }
 
-    // Fetch allowed metafield definitions for products (with pagination and debug logging)
-    let allowedMetafields = new Set();
-    try {
-      let metafieldDefinitions = [];
-      let url = `https://${shopEnv}/admin/api/2024-04/metafield_definitions.json?owner_type=PRODUCT&limit=250`;
-      console.log('[Shopify Import] Fetching metafield definitions from:', url);
-      console.log('[Shopify Import] Using access token:', accessToken ? accessToken.slice(0, 6) + '...' : 'none');
-      console.log('[Shopify Import] Session scopes:', session?.scope || session?.scopes);
-      do {
-        const defsRes = await fetch(url, {
-          headers: { 'X-Shopify-Access-Token': accessToken }
-        });
-        console.log('[Shopify Import] Metafield definitions response status:', defsRes.status);
-        const defsJson = await defsRes.json();
-        if (defsRes.status === 404) {
-          console.error('[Shopify Import] ERROR: Metafield definitions endpoint returned 404. This usually means your app does not have the required access scopes or the endpoint is not available for your API version/store.');
-        }
-        // Debug: log the full response for the first page
-        if (metafieldDefinitions.length === 0) {
-          console.log('[Shopify Import] Full metafield_definitions API response:', JSON.stringify(defsJson, null, 2));
-        }
-        if (defsJson.metafield_definitions) {
-          metafieldDefinitions = metafieldDefinitions.concat(defsJson.metafield_definitions);
-        }
-        // Check for pagination (Shopify uses Link header for pagination)
-        const linkHeader = defsRes.headers.get('link');
-        if (linkHeader && linkHeader.includes('rel="next"')) {
-          // Extract next page URL from Link header
-          const match = linkHeader.match(/<([^>]+)>; rel="next"/);
-          url = match ? match[1] : null;
-        } else {
-          url = null;
-        }
-      } while (url);
-      metafieldDefinitions.forEach(def => {
-        allowedMetafields.add(`${def.namespace}:${def.key}`);
-      });
-      // Log allowed metafields for debugging
-      console.log('[Shopify Import] Allowed metafields:', Array.from(allowedMetafields));
-    } catch (err) {
-      console.warn('[Shopify Import] Could not fetch metafield definitions:', err);
-    }
-
     // Batch processing
     const batchSize = 10;
     const results = { success: [], failed: [] };
@@ -307,7 +272,7 @@ export const action = async ({ request }) => {
         const product = batch[j];
         // Log each product before upload
         // console.log('[Preparing to upload product]', JSON.stringify(product, null, 2));
-        try { 
+        try {
           // Use builder based on format
           let shopifyProduct;
           switch (format.toLowerCase()) {
@@ -374,6 +339,11 @@ export const action = async ({ request }) => {
             shopifyProduct.status = 'active';
           }
 
+          // Filter metafields for both product creation and upsert
+          shopifyProduct.metafields = (shopifyProduct.metafields || []).filter(
+            mf => allowedNamespace(mf.namespace) && mf.value !== undefined && mf.value !== null && String(mf.value).trim() !== ''
+          );
+
           let response, result;
           try {
             response = await fetch(`https://${shopEnv}/admin/api/2024-04/products.json`, {
@@ -386,66 +356,52 @@ export const action = async ({ request }) => {
             });
             result = await response.json();
 
-            // After product creation, create metafields if present and allowed
-            if (response.ok && result.product && Array.isArray(shopifyProduct.metafields) && shopifyProduct.metafields.length > 0) {
-              // Log product ID and shop domain
-              console.log('[Shopify Import] Creating metafields for product ID:', result.product.id, 'on shop:', shopEnv);
-              // Filter metafields to only those allowed by Shopify and with non-empty values
-              const filteredMetafields = shopifyProduct.metafields.filter(mf =>
-                allowedMetafields.has(`${mf.namespace}:${mf.key}`) &&
-                mf.value !== undefined &&
-                mf.value !== null &&
-                String(mf.value).trim() !== ''
-              );
-              // Log skipped metafields for debugging
-              shopifyProduct.metafields.forEach(mf => {
-                if (!allowedMetafields.has(`${mf.namespace}:${mf.key}`)) {
-                  console.log('[Shopify Import] Skipping undefined metafield:', mf.namespace, mf.key, '| Value:', mf.value);
-                } else if (mf.value === undefined || mf.value === null || String(mf.value).trim() === '') {
-                  console.log('[Shopify Import] Skipping empty metafield:', mf.namespace, mf.key, '| Value:', mf.value);
+            // Filter metafields upfront to only allowed namespaces and non-empty values
+            const filteredMetafields = (shopifyProduct.metafields || []).filter(
+              mf => {
+                if (!allowedNamespace(mf.namespace)) {
+                  // console.log('[SKIP] Not allowed namespace:', mf.namespace, mf.key);
+                  return false;
                 }
-              });
-              // Only create allowed, non-empty metafields
-              for (const metafield of filteredMetafields) {
-                try {
-                  // Ensure metafield payload matches Shopify's required structure
-                  const metafieldPayload = {
-                    metafield: {
-                      namespace: metafield.namespace,
-                      key: metafield.key,
-                      value: metafield.value,
-                      type: metafield.type || 'single_line_text_field',
-                    }
-                  };
-                  console.log('[Shopify Import] Sending metafield payload:', JSON.stringify(metafieldPayload));
-                  const mfRes = await fetch(`https://${shopEnv}/admin/api/2024-04/products/${result.product.id}/metafields.json`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'X-Shopify-Access-Token': accessToken,
-                    },
-                    body: JSON.stringify(metafieldPayload)
-                  });
-                  const mfResult = await mfRes.json();
-                  if (!mfRes.ok) {
-                    console.warn('[Shopify Import] Failed to create metafield:', metafieldPayload, '| Shopify response:', JSON.stringify(mfResult));
-                    // Add error to results.failed for user feedback
-                    results.failed.push({ product: shopifyProduct, metafield: metafieldPayload, error: mfResult.errors || mfResult });
-                  }
-                } catch (mfErr) {
-                  console.warn('[Shopify Import] Error creating metafield:', metafield, mfErr);
-                  results.failed.push({ product: shopifyProduct, metafield, error: mfErr.message });
+                if (mf.value === undefined || mf.value === null || String(mf.value).trim() === '') return false;
+                // console.log('[UPSERT] Allowed metafield:', mf.namespace, mf.key);
+                return true;
+              }
+            );
+            for (const metafield of filteredMetafields) {
+              const productGid = `gid://shopify/Product/${result.product.id}`;
+              const variables = {
+                input: {
+                  namespace: metafield.namespace,
+                  key: metafield.key,
+                  value: metafield.value,
+                  type: metafield.type || 'single_line_text_field',
+                  ownerId: productGid
                 }
+              };
+              try {
+                const mfRes = await fetch(`https://${shopEnv}/admin/api/2024-04/graphql.json`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Shopify-Access-Token': accessToken,
+                  },
+                  body: JSON.stringify({ query: METAFIELD_UPSERT, variables })
+                });
+                const mfResult = await mfRes.json();
+                if (mfResult.data?.metafieldUpsert?.userErrors?.length) {
+                  // console.warn('[Shopify Import] metafieldUpsert userErrors:', mfResult.data.metafieldUpsert.userErrors);
+                  results.failed.push({ product: shopifyProduct, metafield, error: mfResult.data.metafieldUpsert.userErrors });
+                }
+              } catch (mfErr) {
+                // console.warn('[Shopify Import] Error upserting metafield:', metafield, mfErr);
+                results.failed.push({ product: shopifyProduct, metafield, error: mfErr.message });
               }
             }
           } catch (apiError) {
             results.failed.push({ product: shopifyProduct, error: `API error: ${apiError.message}` });
             continue;
           }
-
-          // Log the uploaded product payload and Shopify's response
-          console.log('[Uploaded Product Payload]', JSON.stringify(shopifyProduct, null, 2));
-          console.log('[Shopify API Response]', JSON.stringify(result, null, 2));
 
           // Success check and push to results.success or results.failed
           if (response.ok && (result.product || result.id || (result.products && result.products.length > 0))) {
@@ -548,16 +504,16 @@ export const action = async ({ request }) => {
               // Update StoreStats
               const storeStats = await StoreStats.findOneAndUpdate(
                 { shopId: shopDoc._id },
-                { 
+                {
                   $inc: { importCount: 1 },
-                  $setOnInsert: { 
+                  $setOnInsert: {
                     shopId: shopDoc._id,
                     platformUsage: { import: new Map(), export: new Map() }
                   }
                 },
-                { 
+                {
                   upsert: true,
-                  new: true 
+                  new: true
                 }
               );
             } catch (error) {

@@ -13,9 +13,6 @@ if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_API_SECRET) {
   throw new Error('Missing required Shopify API credentials');
 }
 
-// Log the active SCOPES at startup for debugging
-console.log('Active SCOPES at startup:', process.env.SCOPES);
-
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET,

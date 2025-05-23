@@ -7,6 +7,8 @@ import { authenticate } from '../shopify.server.js';
 import { useActionData, useSubmit, useNavigate, useLoaderData } from '@remix-run/react';
 import { json } from '@remix-run/node';
 import FaqSection from '../components/FaqSection';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 
 import {
   Card,
@@ -17,7 +19,6 @@ import {
   ButtonGroup,
   Pagination,
   Icon,
-  Collapsible,
   Link,
   Box,
   Page,
@@ -192,7 +193,8 @@ function ContactSkeleton() {
 }
 
 export default function Contact() {
-  const { authenticated } = useLoaderData();
+  const { t } = useTranslation();
+  const loaderData = typeof useLoaderData === 'function' ? useLoaderData() : {};
   const actionData = useActionData();
   const submit = useSubmit();
   const navigate = useNavigate();
@@ -214,6 +216,7 @@ export default function Contact() {
   const [toastError, setToastError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedLanguage, setSelectedLanguage] = useState(i18n.language || 'en');
   const TUTORIALS_PER_PAGE = 2;
   const totalPages = Math.ceil(tutorialData.length / TUTORIALS_PER_PAGE);
   const pagedTutorials = tutorialData.slice(
@@ -325,10 +328,10 @@ export default function Contact() {
             <Box padding="600" minWidth="700px" maxWidth="900px">
               <BlockStack gap="400">
                 <Text variant="headingLg" as="h2" fontWeight="bold">
-                  Contact Us
+                  {t('contact.title')}
                 </Text>
                 <Text variant="headingMd" fontWeight="semibold">
-                  Store Information
+                  {t('contact.storeInformation')}
                 </Text>
 
                 {submitResult && (
@@ -346,7 +349,7 @@ export default function Contact() {
                 <InlineStack gap="200">
                   <Box width="49%">
                     <TextField
-                      label="Your name"
+                      label={t('contact.your_name')}
                       value={form.name}
                       onChange={handleChange('name')}
                       autoComplete="name"
@@ -356,11 +359,11 @@ export default function Contact() {
                   </Box>
                   <Box width="50%">
                     <TextField
-                      label="Your email"
+                      label={t('contact.your_email')}
                       value={form.email}
                       onChange={handleChange('email')}
                       autoComplete="email"
-                      helpText="We'll use this address if we need to contact you about your account."
+                      helpText={t('contact.help_text')}
                       disabled={isSubmitting}
                       required
                       type="email"
@@ -371,37 +374,35 @@ export default function Contact() {
                 <InlineStack gap="200">
                   <Box width="49%">
                     <TextField
-                      label="Collaborator request code"
+                      label={t('contact.collaborator_request_code')}
                       value={form.code}
                       onChange={handleChange('code')}
                       autoComplete="off"
                       requiredIndicator
                       disabled={isSubmitting}
                       required
+                      helpText={t('contact.code_instructions')}
                     />
-                    <Text color="subdued" fontSize="bodySm">
-                      To find the 4-digit access code, please follow the steps below:<br />
-                      Navigate to your Shopify store admin &gt; Settings &gt; Users &gt; Security &gt; Store security &gt; Collaborators, and there's your code!
-                    </Text>
                   </Box>
                   <Box width="50%">
                     <TextField
-                      label="Store password"
+                      label={t('contact.store_password')}
                       value={form.password}
                       onChange={handleChange('password')}
                       autoComplete="off"
                       disabled={isSubmitting}
                       type="password"
+                      helpText={t('contact.password_instructions')}
                     />
-                    <Text color="subdued" fontSize="bodySm">
-                      Password to access the website if available
-                    </Text>
                   </Box>
                 </InlineStack>
 
-                <Divider />
+                <Divider style={{margin: '24px 0'}} />
+                <Text variant="headingMd" fontWeight="bold" style={{marginBottom: 8}}>
+                  {t('contact.contact_reason')}
+                </Text>
                 <Select
-                  label="Reason for contacting"
+                  label={t('contact.reason_for_contacting')}
                   options={reasonOptions}
                   value={form.reason}
                   onChange={handleChange('reason')}
@@ -409,19 +410,19 @@ export default function Contact() {
                   required
                 />
                 <TextField
-                  label="Page information"
+                  label={t('contact.page_information')}
                   value={form.page}
                   onChange={handleChange('page')}
-                  helpText="Information about the page you are having problems with such as page title, page url"
+                  helpText={t('contact.page_help_text')}
                   disabled={isSubmitting}
                 />
                 <TextField
-                  label="Message"
+                  label={t('contact.message')}
                   value={form.message}
                   onChange={handleChange('message')}
                   multiline={4}
                   requiredIndicator
-                  helpText="Please provide detailed information about your inquiry"
+                  helpText={t('contact.message_help_text')}
                   disabled={isSubmitting}
                   required
                 />
@@ -434,7 +435,7 @@ export default function Contact() {
                       disabled={isSubmitting}
                       onClick={handleSubmit}
                     >
-                      {isSubmitting ? 'Sending...' : 'Send'}
+                      {isSubmitting ? t('contact.send') : t('contact.send')}
                     </Button>
                   </div>
                 </Box>
@@ -444,18 +445,22 @@ export default function Contact() {
         </Box>
 
         {/* Tutorials */}
-        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+        {/* <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
             <BlockStack gap="200">
-              <Text variant="headingMd">Quick tutorials</Text>
-              <Text color="subdued">This is where an optional subheading can go</Text>
+              <Text variant="headingMd">
+                {t('import.quick_tutorials')}
+              </Text>
+              <Text color="subdued">
+                {t('import.quick_tutorials_subheading')}
+              </Text>
               <InlineGrid columns={{ xs: 1, sm: 2 }} gap="400">
                 {pagedTutorials.map((tut, idx) => (
                   <Card key={idx} padding="400">
                     <Box background="bg-surface">
-                      <div style={{ display: 'flex', gap: 5 }}>
+                      <div style={{ display: 'flex', gap: 5 }}> */}
                         {/* Icon on the left */}
-                        <Box
+                        {/* <Box
                           width="60px"
                           height="60px"
                           borderRadius="full"
@@ -466,15 +471,15 @@ export default function Contact() {
                           marginInlineEnd="200"
                         >
                           <img src={tutorialIcon} alt="Tutorial" style={{ width: 40, height: 40 }} />
-                        </Box>
+                        </Box> */}
                         {/* Content on the right */}
-                        <BlockStack gap="100">
+                        {/* <BlockStack gap="100">
                           <Text variant="headingSm">{tut.title}</Text>
                           <Text>{tut.desc}</Text>
                           <ButtonGroup>
-                            <Button url={tut.video} icon={PlayIcon}>Watch video</Button>
+                            <Button url={tut.video} icon={PlayIcon}>{t('import.watch_video')}</Button>
                             <Link url={tut.instruction} style={{ color: '#3574F2', fontWeight: 500 }}>
-                              Read instruction
+                              {t('import.read_instruction')}
                             </Link>
                           </ButtonGroup>
                         </BlockStack>
@@ -494,14 +499,14 @@ export default function Contact() {
               </Box>
             </BlockStack>
           </Card>
-        </Box>
+        </Box> */}
 
         {/* Help Section */ /* FAQ Section */}
-        <Box ref={helpSectionRef} display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+        <Box ref={helpSectionRef} display="flex" justifyContent="flex-start" >
           <Card paddingBlockStart="600" paddingBlockEnd="600" background="bg-surface" borderRadius="2xl">
             <div style={{ padding: '5px 0px 11px 2px' }}>
               <Text variant="headingMd" as="h2" fontWeight="bold">
-                Need help or Import?
+                {t('import.need_help_or_import')}
               </Text>
             </div>
             <InlineGrid columns={3} gap="400" style={{ width: '100%' }}>
@@ -510,11 +515,11 @@ export default function Contact() {
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={EmailIcon} color="interactive" />
-                      Get email support
+                      {t('import.get_email_support')}
                     </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
-                    Email us and we'll get back to you as soon as possible.
+                    {t('import.email_support_description')}
                   </Text>
                 </Box>
               </Card>
@@ -523,11 +528,11 @@ export default function Contact() {
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }} onClick={e => { e.preventDefault(); if (window.$crisp) window.$crisp.push(["do", "chat:open"]); }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={ChatIcon} color="interactive" />
-                      Start live chat
+                      {t('import.start_live_chat')}
                     </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
-                    Talk to us directly via live chat to get help with your question.
+                    {t('import.live_chat_description')}
                   </Text>
                 </Box>
               </Card>
@@ -536,19 +541,17 @@ export default function Contact() {
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={NoteIcon} color="interactive" />
-                      Help docs
+                      {t('import.help_docs')}
                     </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
-                    Find a solution for your problem with documents and tutorials.
+                    {t('import.help_docs_description')}
                   </Text>
                 </Box>
               </Card>
             </InlineGrid>
-            <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
-              <Box display="flex" paddingBlockStart="400" >
-                <FaqSection />
-              </Box>
+            <Box display="flex" paddingBlockStart="400" paddingBlockEnd="400">
+              <FaqSection />
             </Box>
           </Card>
         </Box>

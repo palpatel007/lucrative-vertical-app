@@ -9,28 +9,17 @@ export async function checkSubscriptionQuota(shop) {
   }
 
   try {
-    console.log('[Subscription] Checking quota for shop:', shop);
-    
     // First find the shop to get its ID
     const shopDoc = await Shop.findOne({ shop });
     if (!shopDoc) {
-      console.log('[Subscription] Shop not found:', shop);
       return { error: 'Shop not found', status: 404 };
     }
 
     // Now find subscription using shop's ID
     const subscription = await Subscription.findOne({ shopId: shopDoc._id });
-    console.log('[Subscription] Found subscription:', {
-      exists: !!subscription,
-      plan: subscription?.plan,
-      status: subscription?.status,
-      importCount: subscription?.importCount,
-      limits: subscription?.getPlanLimits?.()
-    });
     
     // If no subscription exists, create a free one
     if (!subscription) {
-      console.log('[Subscription] No subscription found, returning free plan');
       return {
         subscription: {
           plan: 'FREE',
@@ -45,10 +34,6 @@ export async function checkSubscriptionQuota(shop) {
 
     // Check if subscription is active
     if (subscription.status !== 'active') {
-      console.log('[Subscription] Subscription not active:', {
-        plan: subscription.plan,
-        status: subscription.status
-      });
       return {
         error: 'Subscription is not active',
         status: 403,
@@ -63,18 +48,6 @@ export async function checkSubscriptionQuota(shop) {
 
     // Check if quota is exceeded
     const limit = PLANS[subscription.plan].importLimit;
-    console.log('[Subscription] Checking quota:', {
-      plan: subscription.plan,
-      currentCount: subscription.importCount,
-      limit,
-      remaining: limit - subscription.importCount,
-      rawSubscription: {
-        plan: subscription.plan,
-        status: subscription.status,
-        importCount: subscription.importCount,
-        limits: subscription.limits
-      }
-    });
 
     return { 
       subscription: {
@@ -85,7 +58,6 @@ export async function checkSubscriptionQuota(shop) {
       }
     };
   } catch (error) {
-    console.error('[Subscription] Error checking quota:', error);
     return { error: 'Failed to check subscription quota', status: 500 };
   }
 }
@@ -94,15 +66,12 @@ export async function requireActiveSubscription(shopId) {
   try {
     // Ensure shopId is an ObjectId
     const objectId = typeof shopId === 'string' ? mongoose.Types.ObjectId(shopId) : shopId;
-    console.log('[Subscription Check] Looking for active subscription for shopId:', objectId);
     
     const subscription = await Subscription.findOne({
       shopId: objectId,
       status: 'active'
     });
 
-    console.log('[Subscription Check] Found:', subscription);
-    
     if (!subscription) {
       const error = new Error('Active subscription required');
       error.status = 402; // Payment Required
@@ -113,13 +82,11 @@ export async function requireActiveSubscription(shopId) {
     if (subscription.nextBillingDate) {
       const daysUntilExpiry = Math.ceil((subscription.nextBillingDate - new Date()) / (1000 * 60 * 60 * 24));
       if (daysUntilExpiry <= 7) {
-        console.log(`[Subscription Check] Subscription expires in ${daysUntilExpiry} days`);
       }
     }
 
     return subscription;
   } catch (err) {
-    console.error('[Subscription Check] Error in requireActiveSubscription:', err);
     throw err;
   }
 }
@@ -132,7 +99,6 @@ export async function incrementUsage(shopId, type = 'import') {
     let subscription = await Subscription.findOne({ shopId });
     
     if (!subscription) {
-      console.log('[Subscription] No subscription found, creating free one for shop:', shopId);
       // Get shop to get access token
       const shop = await Shop.findOne({ _id: shopId });
       if (!shop) {
@@ -165,7 +131,6 @@ export async function incrementUsage(shopId, type = 'import') {
 
     return subscription;
   } catch (error) {
-    console.error(`Error incrementing ${type} count:`, error);
     throw error;
   }
 }
@@ -181,7 +146,6 @@ export async function checkPlatformAccess(shopId, platform) {
     const limits = PLANS[subscription.plan];
     return limits.platforms.includes(platform);
   } catch (error) {
-    console.error('Error checking platform access:', error);
     return false;
   }
 } 

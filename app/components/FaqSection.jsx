@@ -1,58 +1,15 @@
 import React, { useState } from 'react';
 import { Text } from '@shopify/polaris';
+import { useTranslation } from 'react-i18next';
 
 export default function FaqSection() {
-  const faqs = [
-    {
-      question: "What is the Bulk Product Uploading App?",
-      answer: "The Bulk Product Uploading App allows you to easily import and export products across multiple eCommerce platforms, including Shopify, WooCommerce, Amazon, Walmart, Etsy, BigCommerce, and more. With our app, you can streamline your product management process and move data between platforms effortlessly."
-    },
-    {
-      question: "Which platforms are supported for product import and export?",
-      answer: "Our app supports the following platforms for product import and export:\n\n- Shopify\n- Amazon Seller\n- Walmart Seller\n- eBay Seller\n- AliExpress\n- WooCommerce\n- Wix Seller\n- Alibaba\n- Etsy\n- Squarespace\n- BigCommerce\n- Custom CSV"
-    },
-    {
-      question: "How do I import products into my store?",
-      answer: "To import products, select your desired platform (e.g., Shopify, Amazon, etc.), upload your CSV file containing the product details, and the app will automatically import the products to your store."
-    },
-    {
-      question: "How do I export products from Shopify to other platforms?",
-      answer: "To export your products from Shopify, simply select the desired platform (e.g., Amazon, eBay, etc.) and choose the export option. Our app will generate a CSV file that you can upload to the chosen platform."
-    },
-    {
-      question: "What types of plans are available?",
-      answer: "We offer multiple subscription plans to fit your needs:\n\nFREE: $0/month for 20 products import & export (Shopify, WooCommerce). Does not renew.\nSHOP PLAN: $9.99/month for 100 products import & export (Shopify, WooCommerce, Wix, BigCommerce, Squarespace). Renews monthly.\nWAREHOUSE PLAN: $14.99/month for 300 products import & export (Shopify, WooCommerce, Squarespace, Amazon, Alibaba, Custom Sheet). Renews monthly.\nFACTORY PLAN: $49.99/month for 1,000 products import & export (Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy). Includes priority support. Renews monthly.\nFRANCHISE PLAN: $129.99/month for 3,000 products import & export (Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, eBay). Includes priority support. Renews monthly.\nCITADEL PLAN: $499.99/month for 50,000 products import & export (Shopify, WooCommerce, Wix, BigCommerce, Squarespace, Amazon, Alibaba, Custom Sheet, AliExpress, Etsy, eBay). Includes priority support. Renews monthly."
-    },
-    {
-      question: "What is the difference between the plans?",
-      answer: "The main differences between the plans are the number of products you can import/export and the platforms supported. Higher-tier plans allow for larger product imports and more platform integrations. Additionally, the Factory, Franchise, and Citadel plans include priority support."
-    },
-    {
-      question: "Do I get support if I need help with the app?",
-      answer: "Yes, we offer customer support through live chat and a support form. You can reach out for assistance with any issues you're facing. Our priority support is available for the Factory, Franchise, and Citadel plans."
-    },
-    {
-      question: "What information do I need to provide for support?",
-      answer: "For support, please provide your name, email ID, collaboration code, store password (for previous reasons), and a detailed message describing your issue."
-    },
-    {
-      question: "What happens if I exceed the product limits of my plan?",
-      answer: "If you exceed the product limits of your current plan, you will need to upgrade to a higher-tier plan that supports a larger number of products. You can easily upgrade your plan through your account settings."
-    },
-    {
-      question: "Can I cancel my subscription at any time?",
-      answer: "Yes, you can cancel your subscription at any time. If you are on a monthly-renewing plan, the cancellation will take effect after your current billing cycle ends."
-    },
-    {
-      question: "How do I contact support?",
-      answer: "You can contact support through our live chat feature or by filling out the support form available in the app. If you are using a Factory, Franchise, or Citadel plan, you'll have access to priority support."
-    },
-    {
-      question: "What is the 'Custom CSV' option?",
-      answer: "The 'Custom CSV' option allows you to import and export product data using your own custom CSV file format. This is ideal for businesses that have specific data structures or use multiple platforms outside of the standard integrations."
-    }
-  ];
+  const { t } = useTranslation();
+  // Get the FAQ array from the translation file
+  const faqs = t('faq', { returnObjects: true });
   const [selectedFaq, setSelectedFaq] = useState(null);
+  if (!Array.isArray(faqs)) {
+    return null; // or return <div>No FAQs available.</div> if you want a message
+  }
   return (
     <div>
       {faqs.map((faq, idx) => {

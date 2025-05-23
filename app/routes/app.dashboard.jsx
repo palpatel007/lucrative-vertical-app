@@ -46,65 +46,38 @@ import { BackgroundImport } from '../components/BackgroundImport';
 import { useToast } from '@chakra-ui/react';
 import FaqSection from '../components/FaqSection';
 
-const tutorialData = [
-  {
-    title: 'Getting Started with Shopify Polaris',
-    desc: "Learn how to set up your first Shopify app using the Polaris design system.",
-    video: 'https://www.youtube.com/watch?v=F1vQ5cF6nq8',
-    instruction: 'https://polaris.shopify.com/getting-started',
-  },
-  {
-    title: 'How to Add Custom Fields to Products',
-    desc: "This tutorial shows you how to add and manage custom fields in your Shopify products.",
-    video: 'https://www.youtube.com/watch?v=2Q6p6QG8b8A',
-    instruction: 'https://help.shopify.com/manual/products/add-update-products',
-  },
-  {
-    title: 'Using Polaris Components in React',
-    desc: "A step-by-step guide to using Polaris React components in your Shopify app.",
-    video: 'https://www.youtube.com/watch?v=3nQNiWdeH2Q',
-    instruction: 'https://polaris.shopify.com/components',
-  },
-  {
-    title: 'Implementing Pagination with Polaris',
-    desc: "Learn how to add and customize pagination in your Shopify admin pages using Polaris.",
-    video: 'https://www.youtube.com/watch?v=4QFQ4QG8b8A',
-    instruction: 'https://polaris.shopify.com/components/navigation/pagination',
-  },
-];
-
 const LANGUAGE_OPTIONS = [
-  { code: 'en', label: 'English', country: 'US' },
-  { code: 'ar', label: 'Arabic', country: 'SA' },
-  { code: 'bg', label: 'Bulgarian', country: 'BG' },
-  { code: 'zh', label: 'Chinese', country: 'CN' },
-  { code: 'hr', label: 'Croatian', country: 'HR' },
   { code: 'cs', label: 'Czech', country: 'CZ' },
   { code: 'da', label: 'Danish', country: 'DK' },
-  { code: 'nl', label: 'Dutch', country: 'NL' },
-  { code: 'fi', label: 'Finnish', country: 'FI' },
-  { code: 'fr', label: 'French', country: 'FR' },
   { code: 'de', label: 'German', country: 'DE' },
-  { code: 'el', label: 'Greek', country: 'GR' },
-  { code: 'he', label: 'Hebrew', country: 'IL' },
-  { code: 'hi', label: 'Hindi', country: 'IN' },
-  { code: 'hu', label: 'Hungarian', country: 'HU' },
-  { code: 'id', label: 'Indonesian', country: 'ID' },
+  { code: 'en', label: 'English', country: 'US' },
+  { code: 'es', label: 'Spanish', country: 'ES' },
+  { code: 'fr', label: 'French', country: 'FR' },
   { code: 'it', label: 'Italian', country: 'IT' },
-  { code: 'ja', label: 'Japanese', country: 'JP' },
-  { code: 'ko', label: 'Korean', country: 'KR' },
-  { code: 'ms', label: 'Malay', country: 'MY' },
+  { code: 'nl', label: 'Dutch', country: 'NL' },
   { code: 'no', label: 'Norwegian', country: 'NO' },
   { code: 'pl', label: 'Polish', country: 'PL' },
   { code: 'pt', label: 'Portuguese', country: 'PT' },
-  { code: 'ro', label: 'Romanian', country: 'RO' },
-  { code: 'ru', label: 'Russian', country: 'RU' },
-  { code: 'es', label: 'Spanish', country: 'ES' },
+  { code: 'fi', label: 'Finnish', country: 'FI' },
   { code: 'sv', label: 'Swedish', country: 'SE' },
-  { code: 'th', label: 'Thai', country: 'TH' },
   { code: 'tr', label: 'Turkish', country: 'TR' },
-  { code: 'uk', label: 'Ukrainian', country: 'UA' },
-  { code: 'vi', label: 'Vietnamese', country: 'VN' },
+  { code: 'th', label: 'Thai', country: 'TH' },
+  { code: 'ja', label: 'Japanese', country: 'JP' },
+  { code: 'zh', label: 'Chinese', country: 'CN' },
+  // { code: 'ko', label: 'Korean', country: 'KR' },
+  // { code: 'ar', label: 'Arabic', country: 'SA' },
+  // { code: 'bg', label: 'Bulgarian', country: 'BG' },
+  // { code: 'hr', label: 'Croatian', country: 'HR' },
+  // { code: 'el', label: 'Greek', country: 'GR' },
+  // { code: 'he', label: 'Hebrew', country: 'IL' },
+  // { code: 'hi', label: 'Hindi', country: 'IN' },
+  // { code: 'hu', label: 'Hungarian', country: 'HU' },
+  // { code: 'id', label: 'Indonesian', country: 'ID' },
+  // { code: 'ms', label: 'Malay', country: 'MY' },
+  // { code: 'ro', label: 'Romanian', country: 'RO' },
+  // { code: 'ru', label: 'Russian', country: 'RU' },
+  // { code: 'uk', label: 'Ukrainian', country: 'UA' },
+  // { code: 'vi', label: 'Vietnamese', country: 'VN' },
   // Add more as needed
 ];
 
@@ -148,15 +121,12 @@ export async function loader({ request }) {
         accessToken: accessToken || "no access token",
         lastLogin: new Date()
       });
-      console.log('[Dashboard] Shop document created:', shop);
     } else {
       shop.accessToken = accessToken;
       shop.lastLogin = new Date();
       await shop.save();
-      console.log('[Dashboard] Shop document updated:', shop);
     }
   } catch (err) {
-    console.error('[Dashboard] Failed to upsert shop:', err);
     return json({ error: "Failed to upsert shop" }, { status: 500 });
   }
 
@@ -173,17 +143,13 @@ export async function loader({ request }) {
         startDate: new Date(),
         endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       });
-      console.log('[Dashboard] Free subscription created:', subscription);
-    } else {
-      console.log('[Dashboard] Subscription already exists for shopId:', shop._id);
     }
   } catch (err) {
-    console.error('[Dashboard] Failed to upsert subscription:', err);
     return json({ error: "Failed to upsert subscription" }, { status: 500 });
   }
 
-  // Return shop domain and plan to client
-  return json({ shop: shopDomain, plan: subscription.plan });
+  // Return shop domain, plan, and language to client
+  return json({ shop: shopDomain, plan: subscription.plan, language: shop.language || 'en' });
 }
 
 function DashboardSkeleton() {
@@ -303,25 +269,44 @@ function DashboardSkeleton() {
 }
 
 export default function Dashboard() {
+  console.log('Dashboard rendered');
   const { t } = useTranslation();
+  const loaderData = typeof useLoaderData === 'function' ? useLoaderData() : {};
   const [selectedFaq, setSelectedFaq] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.language || 'en');
   const [tutorialPage, setTutorialPage] = useState(1);
   const [selectedRange, setSelectedRange] = useState('7');
   const [isLoading, setIsLoading] = useState(true);
+  const [i18nReady, setI18nReady] = useState(false);
+  const tutorialsRaw = t('quick_tutorials.tutorials', { returnObjects: true });
+  const tutorials = Array.isArray(tutorialsRaw) ? tutorialsRaw : [];
   const TUTORIALS_PER_PAGE = 2;
-  const totalPages = Math.ceil(tutorialData.length / TUTORIALS_PER_PAGE);
-  const pagedTutorials = tutorialData.slice(
-    (tutorialPage - 1) * TUTORIALS_PER_PAGE,
-    tutorialPage * TUTORIALS_PER_PAGE
-  );
-  const loaderData = typeof useLoaderData === 'function' ? useLoaderData() : {};
+  const totalPages = Math.ceil(tutorials.length / TUTORIALS_PER_PAGE);
+  const pagedTutorials = Array.isArray(tutorials)
+    ? tutorials.slice((tutorialPage - 1) * TUTORIALS_PER_PAGE, tutorialPage * TUTORIALS_PER_PAGE)
+    : [];
   const [stats, setStats] = useState({ totalProduct: 0, import: 0, export: 0 });
   const [activeImports, setActiveImports] = useState([]);
   const toast = useToast();
   const [showBanner, setShowBanner] = useState(true);
   const navigate = useNavigate();
   const [showReviewBanner, setShowReviewBanner] = useState(true);
+
+  // Sync i18n language with loaderData.language on mount and set i18nReady
+  useEffect(() => {
+    if (loaderData.language && i18n.language !== loaderData.language) {
+      i18n.changeLanguage(loaderData.language).then(() => setI18nReady(true));
+    } else {
+      setI18nReady(true);
+    }
+  }, [loaderData.language]);
+
+  // Sync selectedLanguage with loaderData.language
+  useEffect(() => {
+    if (loaderData.language && selectedLanguage !== loaderData.language) {
+      setSelectedLanguage(loaderData.language);
+    }
+  }, [loaderData.language]);
 
   useEffect(() => {
     let shop = new URLSearchParams(window.location.search).get('shop');
@@ -359,11 +344,9 @@ export default function Dashboard() {
           }
           return true; // Continue polling
         } else {
-          console.error('[Dashboard] Error loading active imports:', data.error);
           return false; // Stop polling on error
         }
       } catch (error) {
-        console.error('[Dashboard] Error loading active imports:', error);
         return false; // Stop polling on error
       }
     };
@@ -398,7 +381,7 @@ export default function Dashboard() {
     }
   };
 
-  if (isLoading) {
+  if (!i18nReady) {
     return <DashboardSkeleton />;
   }
 
@@ -472,15 +455,15 @@ export default function Dashboard() {
           <MediaCard
             title={t('welcome')}
             primaryAction={{
-              content: 'Validate product',
+              content: t('banner.primary_action'),
               onAction: () => { },
             }}
             secondaryAction={{
-              content: 'Learn more',
+              content: t('banner.secondary_action'),
               onAction: () => { },
             }}
-            description="Samantha is the owner of 3 thriving Shopify stores. Start your product exploration by learning about how she finds products to sell."
-            popoverActions={[{ content: 'Dismiss', onAction: () => setShowBanner(false) }]}
+            description={t('banner.description')}
+            popoverActions={[{ content: t('banner.dismiss'), onAction: () => setShowBanner(false) }]}
             size="small"
           >
             <img
@@ -499,14 +482,14 @@ export default function Dashboard() {
             <InlineStack gap="200" blockAlign="center">
               <span style={{ fontSize: 20 }}>👋</span>
               <Text as="span" fontWeight="bold" variant="bodyMd" color="default">
-                Welcome to
+                {t('intro.welcome_message')}
               </Text>
               <Link url="#" monochrome={false} removeUnderline={false}>
                 <Text as="span" fontWeight="semibold" variant="bodyMd" color="textHighlight">
-                  SBit - Bulk Product Upload
+                  {t('intro.app_name')}
                 </Text>
               </Link>
-              <Badge status={loaderData.plan === 'FREE' ? 'info' : 'success'} tone={loaderData.plan === 'FREE' ? 'info' : 'success'}>{loaderData.plan ? formatPlanName(loaderData.plan) : 'Free Plan'}</Badge>
+              <Badge status={loaderData.plan === 'FREE' ? 'info' : 'success'} tone={loaderData.plan === 'FREE' ? 'info' : 'success'}>{loaderData.plan ? t('info.status') : t('info.status')}</Badge>
             </InlineStack>
             <Box display="flex" alignItems="center" gap="200">
               <LanguageDropdown selectedLanguage={selectedLanguage} setSelectedLanguage={setSelectedLanguage} />
@@ -522,44 +505,47 @@ export default function Dashboard() {
               <Placeholder height="320px" width="307px">
                 <img src={downloadIcon} alt="Export" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12 }} />
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                  <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>Step 1: </span>
-                  <span role="img" aria-label="rocket">🚀</span>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>Export Your Bulk Product File</div>
+                  <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>{`Step ${t('steps.0.step_number')}:`}</span>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>
+                    {`${t('steps.0.emoji')} ${t('steps.0.title')}`}
+                  </div>
                 </div>
                 <div style={{ width: '100%', textAlign: 'center' }}>
                   <Text color="subdued" style={{ fontSize: 12, marginBottom: 16, display: 'inline-block' }}>
-                    Download your product list (CSV) from any eCommerce platform like Shopify, WooCommerce, Magento, or BigCommerce.
+                    {t('steps.0.description')}
                   </Text>
                 </div>
-                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }}>Need Full Instructions</Button>
+                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }}>{t('steps.0.button')}</Button>
               </Placeholder>
               <Placeholder height="320px" width="307px">
                 <img src={codeIcon} alt="Select Platform" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12 }} />
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                  <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>Step 2: </span>
-                  <span role="img" aria-label="cart">🛒</span>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>Select Your Source Platform</div>
+                  <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>{`Step ${t('steps.1.step_number')}:`}</span>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>
+                    {`${t('steps.1.emoji')} ${t('steps.1.title')}`}
+                  </div>
                 </div>
                 <div style={{ width: '100%', textAlign: 'center' }}>
                   <Text color="subdued" style={{ fontSize: 12, marginBottom: 16, display: 'inline-block' }}>
-                    Choose the platform from which your product file was exported. This helps us optimize the import settings automatically.
+                    {t('steps.1.description')}
                   </Text>
                 </div>
-                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }} onClick={() => navigate('/app/import')}>Select Platform</Button>
+                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }} onClick={() => navigate('/app/import')}>{t('steps.1.button')}</Button>
               </Placeholder>
               <Placeholder height="320px" width="100%">
                 <img src={uploadIcon} alt="Upload" style={{ width: 96, height: 120, objectFit: 'contain', borderRadius: 12 }} />
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                  <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>Step 3: </span>
-                  <span role="img" aria-label="ship">⛵</span>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>Upload Your Product File</div>
+                  <span style={{ color: '#202223', fontWeight: 450, fontSize: 12 }}>{`Step ${t('steps.2.step_number')}:`}</span>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginTop: 4 }}>
+                    {`${t('steps.2.emoji')} ${t('steps.2.title')}`}
+                  </div>
                 </div>
                 <div style={{ width: '100%', textAlign: 'center' }}>
                   <Text color="subdued" style={{ fontSize: 12, marginBottom: 16, display: 'inline-block' }}>
-                    Simply upload the exported file here. We'll process your products and prepare them for seamless migration into your Shopify store.
+                    {t('steps.2.description')}
                   </Text>
                 </div>
-                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }} onClick={() => navigate('/app/import')}>Upload File</Button>
+                <Button variant="primary" fullWidth style={{ width: 288, height: 32 }} onClick={() => navigate('/app/import')}>{t('steps.2.button')}</Button>
               </Placeholder>
             </InlineGrid>
           </SpacingBackground>
@@ -584,13 +570,13 @@ export default function Dashboard() {
                 marginBottom: 8,
               }}>
                 <div style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: '#202223' }}>
-                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>Total Product</span>
+                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>{t('stats.total_product')}</span>
                 </div>
                 <div style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: '#202223' }}>
-                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>Import</span>
+                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>{t('stats.import')}</span>
                 </div>
                 <div style={{ flex: 1, textAlign: 'left', fontWeight: 600, color: '#202223' }}>
-                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>Export</span>
+                  <span style={{ display: 'inline-block', borderBottom: '1px dotted #ccc', paddingBottom: 4 }}>{t('stats.export')}</span>
                 </div>
               </div>
               {/* Numbers Row */}
@@ -609,18 +595,18 @@ export default function Dashboard() {
         </Box>
 
         {/* Tutorials */}
-        <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
+        {/* <Box display="flex" justifyContent="flex-start" paddingBlockEnd="400">
           <Card padding="500" background="bg-surface" borderRadius="2xl" paddingBlockStart="600" paddingBlockEnd="600">
             <BlockStack gap="200">
-              <Text variant="headingMd">Quick tutorials</Text>
-              <Text color="subdued">This is where an optional subheading can go</Text>
+              <Text variant="headingMd">{t('import.quick_tutorials')}</Text>
+              <Text color="subdued">{t('import.quick_tutorials_subheading')}</Text>
               <InlineGrid columns={{ xs: 1, sm: 2 }} gap="400">
-                {pagedTutorials.map((tut, idx) => (
+                {Array.isArray(pagedTutorials) && pagedTutorials.map((tut, idx) => (
                   <Card key={idx} padding="400">
                     <Box background="bg-surface">
-                      <div style={{ display: 'flex', gap: 5 }}>
+                      <div style={{ display: 'flex', gap: 5 }}> */}
                         {/* Icon on the left */}
-                        <Box
+                        {/* <Box
                           width="60px"
                           height="60px"
                           borderRadius="full"
@@ -631,16 +617,26 @@ export default function Dashboard() {
                           marginInlineEnd="200"
                         >
                           <img src={tutorialIcon} alt="Tutorial" style={{ width: 40, height: 40 }} />
-                        </Box>
+                        </Box> */}
                         {/* Content on the right */}
-                        <BlockStack gap="100">
+                        {/* <BlockStack gap="100">
                           <Text variant="headingSm">{tut.title}</Text>
-                          <Text>{tut.desc}</Text>
+                          <Text>{tut.description}</Text>
                           <ButtonGroup>
-                            <Button url={tut.video} icon={PlayIcon}>Watch video</Button>
-                            <Link url={tut.instruction} style={{ color: '#3574F2', fontWeight: 500 }}>
-                              Read instruction
-                            </Link>
+                            <Button
+                              onClick={() => window.open(tut.video, '_blank')}
+                              variant="primary"
+                              size="slim"
+                            >
+                              {t('import.watch_video')}
+                            </Button>
+                            <Button
+                              onClick={() => window.open(tut.instruction, '_blank')}
+                              variant="secondary"
+                              size="slim"
+                            >
+                              {t('import.read_instruction')}
+                            </Button>
                           </ButtonGroup>
                         </BlockStack>
                       </div>
@@ -659,12 +655,12 @@ export default function Dashboard() {
               </Box>
             </BlockStack>
           </Card>
-        </Box>
+        </Box> */}
 
         {/* Active Imports Section */}
         {activeImports.length > 0 && (
           <Box marginTop="400">
-            <Text variant="headingMd" marginBottom="200">Active Imports</Text>
+            <Text variant="headingMd" marginBottom="200">{t('active_imports.title')}</Text>
             {activeImports.map(importData => (
               <Box key={importData._id} marginBottom="200">
                 <BackgroundImport
@@ -672,7 +668,7 @@ export default function Dashboard() {
                   onComplete={(progress) => handleImportComplete(importData._id, progress)}
                 />
                 <Text variant="bodyMd">
-                  Importing {importData.processedProducts} of {importData.totalProducts} products
+                  {t('active_imports.progress', { processedProducts: importData.processedProducts, totalProducts: importData.totalProducts })}
                 </Text>
               </Box>
             ))}
@@ -684,7 +680,7 @@ export default function Dashboard() {
           <Card paddingBlockStart="600" paddingBlockEnd="600" background="bg-surface" borderRadius="2xl">
             <div style={{ padding: '5px 0px 11px 2px' }}>
               <Text variant="headingMd" as="h2" fontWeight="bold">
-                Need help or Import?
+                {t('import.need_help_or_import')}
               </Text>
             </div>
             <InlineGrid columns={3} gap="400" style={{ width: '100%' }}>
@@ -693,11 +689,11 @@ export default function Dashboard() {
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }} onClick={e => { e.preventDefault(); navigate('/app/contact#help-section'); }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={EmailIcon} color="interactive" />
-                      Get email support
+                      {t('import.get_email_support')}
                     </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
-                    Email us and we'll get back to you as soon as possible.
+                    {t('import.email_support_description')}
                   </Text>
                 </Box>
               </Card>
@@ -706,11 +702,11 @@ export default function Dashboard() {
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }} onClick={e => { e.preventDefault(); if (window.$crisp) window.$crisp.push(["do", "chat:open"]); }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={ChatIcon} color="interactive" />
-                      Start live chat
+                      {t('import.start_live_chat')}
                     </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
-                    Talk to us directly via live chat to get help with your question.
+                    {t('import.live_chat_description')}
                   </Text>
                 </Box>
               </Card>
@@ -719,11 +715,11 @@ export default function Dashboard() {
                   <Link url="#" monochrome={false} style={{ color: '#3574F2', fontWeight: 500 }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Icon source={NoteIcon} color="interactive" />
-                      Help docs
+                      {t('import.help_docs')}
                     </span>
                   </Link>
                   <Text color="subdued" fontSize="bodySm">
-                    Find a solution for your problem with documents and tutorials.
+                    {t('import.help_docs_description')}
                   </Text>
                 </Box>
               </Card>
@@ -738,13 +734,13 @@ export default function Dashboard() {
         {showReviewBanner && (
           <Box marginBlockEnd="400" marginBlockStart="400">
             <Banner
-              title="Would you consider leaving us a review?"
+              title={t('review_banner.title')}
               status="info"
               onDismiss={() => setShowReviewBanner(false)}
             >
-              <p>We'd love to hear your feedback! Please take a moment to leave a review and help us improve our service.</p>
+              <p>{t('review_banner.message')}</p>
               <Box paddingBlockStart="200">
-                <Button onClick={() => window.open('https://your-review-link.com', '_blank')}>Leave a review</Button>
+                <Button onClick={() => window.open('https://your-review-link.com', '_blank')}>{t('review_banner.leave_review')}</Button>
               </Box>
             </Banner>
           </Box>
@@ -823,14 +819,27 @@ const Placeholder = ({ height = 'auto', width = 'auto', children }) => {
 };
 
 function LanguageDropdown({ selectedLanguage, setSelectedLanguage }) {
+  console.log('LanguageDropdown rendered with', selectedLanguage);
   const [active, setActive] = useState(false);
   const toggleActive = useCallback(() => setActive((active) => !active), []);
   const selected = LANGUAGE_OPTIONS.find(l => l.code === selectedLanguage) || LANGUAGE_OPTIONS[0];
 
-  const handleSelect = (lang) => {
+  const handleSelect = async (lang) => {
+    console.log('LanguageDropdown: handleSelect called with', lang.code);
     setSelectedLanguage(lang.code);
     i18n.changeLanguage(lang.code);
     setActive(false);
+    // Update language in backend
+    try {
+      await fetch('/api/shop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: lang.code })
+      });
+      console.log('LanguageDropdown: Language updated in backend', lang.code);
+    } catch (err) {
+      console.error('LanguageDropdown: Error updating language in backend', err);
+    }
   };
 
   const activator = (

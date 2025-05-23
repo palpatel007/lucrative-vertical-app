@@ -7,6 +7,7 @@ const shopSchema = new mongoose.Schema({
   plan: { type: String, required: true },
   isPlus: { type: Boolean, default: false },
   accessToken: { type: String, required: true },
+  language: { type: String, default: 'en' },
   lastLogin: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

@@ -1,5 +1,5 @@
 export function buildShopifyProductFromWooCommerceCSV(product) {
-    console.log('RAW PRODUCT:', JSON.stringify(product, null, 2));
+    // console.log('RAW PRODUCT:', JSON.stringify(product, null, 2));
     let priceRaw = product['price'];
     let compareAtPriceRaw = product['compareAtPrice'];
     let priceNum = parseFloat(priceRaw);
@@ -25,8 +25,8 @@ export function buildShopifyProductFromWooCommerceCSV(product) {
         price = compareAtNum.toString();
     }
 
-    console.log('final price', price);
-    console.log('final compare_at_price', compare_at_price);
+    // console.log('final price', price);
+    // console.log('final compare_at_price', compare_at_price);
 
     return {
         title: product.title || product.Name || 'Untitled',

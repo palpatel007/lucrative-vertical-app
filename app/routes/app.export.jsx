@@ -44,6 +44,8 @@ import etsyIcon from '../assets/source-icons/etsy.png';
 import ebayIcon from '../assets/source-icons/ebay.png';
 import walmartIcon from '../assets/source-icons/walmart.png';
 import { ImageIcon } from '@shopify/polaris-icons';
+import { useLoaderData } from 'react-router-dom';
+import i18n from '../i18n';
 
 const formatIcons = {
   shopify: shopifyIcon,
@@ -69,7 +71,7 @@ const formatOptions = [
   { label: 'BigCommerce CSV', value: 'bigcommerce', icon: formatIcons.bigcommerce },
   { label: 'Squarespace CSV', value: 'squarespace', icon: formatIcons.squarespace },
   { label: 'Alibaba CSV', value: 'alibaba', icon: formatIcons.alibaba },
-  { label: 'AliExpress CSV', value: 'aliexpress', icon: formatIcons.aliexpress },
+  // { label: 'AliExpress CSV', value: 'aliexpress', icon: formatIcons.aliexpress },
   { label: 'Etsy CSV', value: 'etsy', icon: formatIcons.etsy },
   { label: 'eBay CSV', value: 'ebay', icon: formatIcons.ebay },
   { label: 'Walmart CSV', value: 'walmart', icon: formatIcons.walmart },
@@ -276,6 +278,9 @@ export default function ExportPage() {
     includeShipping: true,
     includeRatings: true,
   });
+  const rawLoaderData = useLoaderData && typeof useLoaderData === 'function' ? useLoaderData() : {};
+  const loaderData = rawLoaderData || {};
+  const [selectedLanguage, setSelectedLanguage] = useState(i18n.language || 'en');
 
   const sortOptions = [
     { label: 'Product title', value: 'title', directionLabel: 'A-Z' },
@@ -369,8 +374,6 @@ export default function ExportPage() {
         url += `&cursor=${encodeURIComponent(cursor)}`;
       }
 
-      console.log('Fetching products with URL:', url);
-
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -387,7 +390,6 @@ export default function ExportPage() {
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
 
       if (!response.ok) {
         if (data.upgradeUrl) {
@@ -508,9 +510,7 @@ export default function ExportPage() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      console.log('[Export][Frontend] Starting export with type:', exportType, 'selectedResources:', selectedResources, 'exportFormat:', exportFormat);
       const url = `/api/products/export?type=${exportType}&format=${exportFormat}`;
-      console.log('[Export][Frontend] URL:', url);
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -523,13 +523,9 @@ export default function ExportPage() {
         credentials: 'include',
       });
 
-      console.log('[Export][Frontend] Response status:', response.status);
-
       if (!response.ok) {
         const data = await response.json();
-        console.log('[Export][Frontend] Error response:', data);
         if (data.upgradeUrl) {
-          console.log('[Export][Frontend] upgradeUrl:', data.upgradeUrl);
           showErrorToast(data.error || "You have reached your export limit. Please upgrade your plan.");
           setTimeout(() => {
             navigate('/app/billing');
@@ -553,23 +549,18 @@ export default function ExportPage() {
         filename = disposition.split('filename=')[1].replace(/"/g, '');
       }
       const blob = await response.blob();
-      console.log('[Export][Frontend] Blob created:', blob);
 
       const downloadUrl = window.URL.createObjectURL(blob);
-      console.log('[Export][Frontend] Download URL created:', downloadUrl);
 
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.setAttribute('download', filename);
       document.body.appendChild(link);
-      console.log('[Export][Frontend] Anchor element created and appended. Triggering click...');
       link.click();
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
-      console.log('[Export][Frontend] Download triggered and URL revoked.');
       showSuccessToast('Export successful!');
     } catch (error) {
-      console.error('[Export][Frontend] Fetch or code error:', error);
       if (error.message.includes('Export limit exceeded')) {
         const shopId = new URLSearchParams(window.location.search).get('shop');
         if (shopId) {
@@ -586,11 +577,6 @@ export default function ExportPage() {
       handleCloseExportModal();
     }
   };
-
-  // Debug logging
-  console.log('Products:', products);
-  console.log('Filtered Products:', filteredProducts);
-  console.log('Selected Tab:', selectedTab);
 
   // Sorting logic
   const getSortField = (sortValue) => sortValue.split(' ')[0];
@@ -663,10 +649,6 @@ export default function ExportPage() {
 
   const togglePopoverActive = useCallback(() => setPopoverActive((active) => !active), []);
   const toggleFormatPopover = useCallback(() => setFormatPopoverActive(active => !active), []);
-
-  if (isLoading) {
-    return <ExportSkeleton />;
-  }
 
   return (
     <Frame>

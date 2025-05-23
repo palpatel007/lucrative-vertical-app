@@ -16,24 +16,24 @@ const transporter = nodemailer.createTransport({
 });
 
 export const action = async ({ request }) => {
-  console.log('[Contact API] Starting contact form submission');
+  // console.log('[Contact API] Starting contact form submission');
 
   try {
     // Get authenticated session
-    console.log('[Contact API] Authenticating session');
+    // console.log('[Contact API] Authenticating session');
     const { session } = await authenticate.admin(request);
     if (!session) {
-      console.error('[Contact API] Authentication failed - No session found');
+      // console.error('[Contact API] Authentication failed - No session found');
       return json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
-    console.log('[Contact API] Session authenticated successfully');
+    // console.log('[Contact API] Session authenticated successfully');
 
     // Get form data
-    console.log('[Contact API] Getting form data');
+    // console.log('[Contact API] Getting form data');
     const formData = await request.formData();
 
     // Log all form data for debugging
-    console.log('[Contact API] Raw form data:', Object.fromEntries(formData.entries()));
+    // console.log('[Contact API] Raw form data:', Object.fromEntries(formData.entries()));
 
     const name = formData.get('name');
     const email = formData.get('email');
@@ -44,38 +44,38 @@ export const action = async ({ request }) => {
     const message = formData.get('message');
     const shop = session.shop;
 
-    console.log('[Contact API] Form data received:', {
-      name,
-      email,
-      code,
-      reason,
-      page,
-      messageLength: message?.length,
-      shop
-    });
+    // console.log('[Contact API] Form data received:', {
+    //   name,
+    //   email,
+    //   code,
+    //   reason,
+    //   page,
+    //   messageLength: message?.length,
+    //   shop
+    // });
 
     // Validate required fields
     if (!name || !email || !code || !message) {
-      console.error('[Contact API] Validation failed - Missing required fields:', {
-        hasName: !!name,
-        hasEmail: !!email,
-        hasCode: !!code,
-        hasMessage: !!message
-      });
+      // console.error('[Contact API] Validation failed - Missing required fields:', {
+      //   hasName: !!name,
+      //   hasEmail: !!email,
+      //   hasCode: !!code,
+      //   hasMessage: !!message
+      // });
       return json({ success: false, error: 'All fields are required' }, { status: 400 });
     }
 
     // Find shop document
-    console.log('[Contact API] Finding shop document for:', shop);
+    // console.log('[Contact API] Finding shop document for:', shop);
     const shopDoc = await Shop.findOne({ shop });
     if (!shopDoc) {
-      console.error('[Contact API] Shop not found:', shop);
+      // console.error('[Contact API] Shop not found:', shop);
       return json({ success: false, error: 'Shop not found' }, { status: 404 });
     }
-    console.log('[Contact API] Shop found:', shopDoc._id);
+    // console.log('[Contact API] Shop found:', shopDoc._id);
 
     // Create contact submission
-    console.log('[Contact API] Creating contact submission');
+    // console.log('[Contact API] Creating contact submission');
     try {
       const contact = await Contact.create({
         shopId: shopDoc._id,
@@ -88,10 +88,10 @@ export const action = async ({ request }) => {
         message,
         status: 'new'
       });
-      console.log('[Contact API] Contact submission created:', contact._id);
+      // console.log('[Contact API] Contact submission created:', contact._id);
 
       // Send email notification
-      console.log('[Contact API] Sending email notification');
+      // console.log('[Contact API] Sending email notification');
       try {
         await transporter.sendMail({
           from: process.env.SMTP_USER,
@@ -133,16 +133,16 @@ export const action = async ({ request }) => {
 
           `
         });
-        console.log('[Contact API] Email notification sent successfully');
+        // console.log('[Contact API] Email notification sent successfully');
       } catch (emailError) {
-        console.error('[Contact API] Failed to send email notification:', emailError);
+        // console.error('[Contact API] Failed to send email notification:', emailError);
         // Don't return error to user if email fails
       }
 
-      console.log('[Contact API] Contact form submission completed successfully');
+      // console.log('[Contact API] Contact form submission completed successfully');
       return json({ success: true, message: 'Message sent successfully!' });
     } catch (dbError) {
-      console.error('[Contact API] Database error:', dbError);
+      // console.error('[Contact API] Database error:', dbError);
       return json({
         success: false,
         error: 'Failed to save your message. Please try again.'
@@ -150,7 +150,7 @@ export const action = async ({ request }) => {
     }
 
   } catch (error) {
-    console.error('[Contact API] Error processing contact form:', error);
+    // console.error('[Contact API] Error processing contact form:', error);
     return json({
       success: false,
       error: 'Failed to process your message. Please try again.'

@@ -1,6 +1,6 @@
 // app/routes/check-scopes.jsx
 import { redirect, json } from "@remix-run/node";
-import { authenticate } from "~/shopify.server";
+import { authenticate } from "../shopify.server.js";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);

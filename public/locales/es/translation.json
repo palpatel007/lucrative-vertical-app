@@ -207,12 +207,7 @@
     "start_live_chat": "Start live chat",
     "live_chat_description": "Talk to us directly via live chat to get help with your question.",
     "help_docs": "Help docs",
-    "help_docs_description": "Find a solution for your problem with documents and tutorials.",
-    "select_source_file": "Select source file",
-    "import_products_by_csv": "Import products by CSV",
-    "add_files": "Add files",
-    "accepts_csv": "Accepts only CSV files",
-    "cancel": "Cancel"
+    "help_docs_description": "Find a solution for your problem with documents and tutorials."
   },
   "export": {
     "title": "Export Products",
@@ -328,4 +323,4 @@
     "message": "We'd love to hear your feedback! Please take a moment to leave a review and help us improve our service.",
     "leave_review": "Leave a review"
   }
-} 
+}

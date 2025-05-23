@@ -13,7 +13,8 @@ import { AppProvider as PolarisAppProvider } from "@shopify/polaris";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import "@shopify/polaris/build/esm/styles.css";
 import { ChakraProvider } from '@chakra-ui/react';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import i18n from './i18n';
 
 export const loader = async () => {
   return json({
@@ -33,6 +34,23 @@ export default function App() {
   const { SHOPIFY_API_KEY } = useLoaderData();
   const host = getHost();
 
+  const [i18nReady, setI18nReady] = useState(false);
+
+  useEffect(() => {
+    const fetchLanguage = async () => {
+      try {
+        const response = await fetch('/api/shop', { credentials: 'include' });
+        const data = await response.json();
+        if (data.success && data.shop && data.shop.language) {
+          await i18n.changeLanguage(data.shop.language);
+        }
+      } catch (err) {
+        // fallback to default
+      }
+      setI18nReady(true);
+    };
+    fetchLanguage();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && !window.$crisp) {

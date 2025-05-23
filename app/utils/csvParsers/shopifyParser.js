@@ -67,7 +67,7 @@ export const shopifyParser = {
         if (isMetafieldColumn || !isStandard) {
           const value = row[header];
           if (typeof console !== 'undefined' && console.log) {
-            console.log(`[ShopifyParser] Considering metafield: header='${header}', value='${value}'`);
+            // console.log(`[ShopifyParser] Considering metafield: header='${header}', value='${value}'`);
           }
           if (value && value !== '') {
             // Try to extract namespace/key
@@ -115,10 +115,10 @@ export const shopifyParser = {
     }).filter(product => product.variants && product.variants.length > 0);
     // Debug log
     if (typeof console !== 'undefined' && console.log) {
-      console.log(`[ShopifyParser] Parsed products: ${products.length}`);
-      if (products.length > 0) {
-        console.log('[ShopifyParser] First product:', JSON.stringify(products[0], null, 2));
-      }
+      // console.log(`[ShopifyParser] Parsed products: ${products.length}`);
+      // if (products.length > 0) {
+      //   console.log('[ShopifyParser] First product:', JSON.stringify(products[0], null, 2));
+      // }
     }
     return products;
   }

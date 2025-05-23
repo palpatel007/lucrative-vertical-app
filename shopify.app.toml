@@ -1,9 +1,9 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "8895518da41bc492b0688f740c7c4e1b"
-name = "Bulk Data Upload"
+client_id = "73e3d8d2e0e4e59998b0e9183ea6d2f9"
+name = "bulk-data-upload"
 handle = "bulk-data-upload"
-application_url = "https://cannon-worldcat-stem-murder.trycloudflare.com"
+application_url = "https://albany-adsl-occurs-host.trycloudflare.com"
 embedded = true
 
 [build]
@@ -11,25 +11,21 @@ automatically_update_urls_on_dev = true
 include_config_on_deploy = true
 
 [webhooks]
-api_version = "2024-01"
+api_version = "2025-04"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
 
-  [[webhooks.subscriptions]]
-  topics = [ "app/scopes/update" ]
-  uri = "/webhooks/app/scopes_update"
-
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,read_products,write_metafields,read_metafields"
+scopes = "read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://cannon-worldcat-stem-murder.trycloudflare.com/auth/callback",
-  "https://cannon-worldcat-stem-murder.trycloudflare.com/auth/shopify/callback",
-  "https://cannon-worldcat-stem-murder.trycloudflare.com/api/auth/callback"
+  "https://albany-adsl-occurs-host.trycloudflare.com/auth/callback",
+  "https://albany-adsl-occurs-host.trycloudflare.com/auth/shopify/callback",
+  "https://albany-adsl-occurs-host.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
